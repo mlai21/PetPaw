@@ -1,3 +1,4 @@
 .worktrees/
 apps/mobile/.dart_tool/
 apps/mobile/build/
+services/api/node_modules/
