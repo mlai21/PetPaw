@@ -1,28 +1,14 @@
-class EvolutionThreshold {
-  const EvolutionThreshold({
-    required this.targetStage,
-    required this.minStreakDays,
-    required this.minWeeklyQualityScore,
+class EvolutionRules {
+  const EvolutionRules({
+    required this.streakThreshold,
+    required this.qualityThreshold,
   });
 
-  final int targetStage;
-  final int minStreakDays;
-  final int minWeeklyQualityScore;
-}
-
-class EvolutionRules {
-  const EvolutionRules(this._thresholdsByStage);
-
-  final Map<int, EvolutionThreshold> _thresholdsByStage;
+  final int streakThreshold;
+  final int qualityThreshold;
 
   factory EvolutionRules.defaultRules() {
-    return EvolutionRules({
-      1: const EvolutionThreshold(
-        targetStage: 2,
-        minStreakDays: 10,
-        minWeeklyQualityScore: 80,
-      ),
-    });
+    return const EvolutionRules(streakThreshold: 7, qualityThreshold: 75);
   }
 
   int nextStage({
@@ -30,16 +16,10 @@ class EvolutionRules {
     required int streakDays,
     required int weeklyQualityScore,
   }) {
-    final threshold = _thresholdsByStage[currentStage];
-    if (threshold == null) {
-      return currentStage;
+    if (streakDays >= streakThreshold &&
+        weeklyQualityScore >= qualityThreshold) {
+      return currentStage + 1;
     }
-    if (streakDays < threshold.minStreakDays) {
-      return currentStage;
-    }
-    if (weeklyQualityScore < threshold.minWeeklyQualityScore) {
-      return currentStage;
-    }
-    return threshold.targetStage;
+    return currentStage;
   }
 }
