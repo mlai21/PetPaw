@@ -1,6 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:pet_paw_app/domain/avatar/personality_mode.dart';
 
+String _modeLabel(PersonalityMode mode) {
+  switch (mode) {
+    case PersonalityMode.healer:
+      return '疗愈者';
+    case PersonalityMode.coach:
+      return '行动教练';
+    case PersonalityMode.strategist:
+      return '策略军师';
+  }
+}
+
 class PersonalitySelector extends StatelessWidget {
   const PersonalitySelector({
     required this.value,
@@ -23,7 +34,7 @@ class PersonalitySelector extends StatelessWidget {
       items: PersonalityMode.values.map((mode) {
         return DropdownMenuItem<PersonalityMode>(
           value: mode,
-          child: Text(mode.name),
+          child: Text(_modeLabel(mode)),
         );
       }).toList(),
     );
