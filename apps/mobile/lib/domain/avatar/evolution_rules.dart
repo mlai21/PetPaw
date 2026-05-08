@@ -16,6 +16,10 @@ class EvolutionRules {
     required int streakDays,
     required int weeklyQualityScore,
   }) {
+    assert(currentStage >= 0);
+    assert(streakDays >= 0);
+    assert(weeklyQualityScore >= 0);
+
     if (streakDays >= streakThreshold &&
         weeklyQualityScore >= qualityThreshold) {
       return currentStage + 1;
