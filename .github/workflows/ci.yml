@@ -5,6 +5,7 @@ on:
   pull_request:
 
 jobs:
+  # Phase2 baseline: keep mobile/api full regression in CI.
   mobile:
     runs-on: ubuntu-latest
     steps:

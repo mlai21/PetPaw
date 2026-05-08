@@ -24,3 +24,10 @@
 - [ ] Avatar growth feedback visible
 - [ ] Advisor chat returns answer with citations
 - [ ] Monthly review endpoint returns summary fields
+
+## Phase 2 Internal Beta Additions
+
+- [ ] Desktop capability contract verified (overlay/tray flags default to false)
+- [ ] Personality selector mode switch verified (healer/coach/strategist)
+- [ ] Memory summary only syncs `sync_allowed` actionable facts
+- [ ] Monthly quality insight trend/focus output verified
