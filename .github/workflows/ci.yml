@@ -5,6 +5,7 @@ on:
   pull_request:
 
 jobs:
+  # Phase2 baseline: keep mobile/api full regression in CI.
   mobile:
     runs-on: ubuntu-latest
     steps:
@@ -27,4 +28,4 @@ jobs:
           cache: pnpm
           cache-dependency-path: services/api/pnpm-lock.yaml
       - name: API tests
-        run: cd services/api && pnpm install && pnpm test
+        run: cd services/api && pnpm install --frozen-lockfile && pnpm test
