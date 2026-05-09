@@ -5,5 +5,13 @@ void main() {
   test('desktop capability reports feature flags', () {
     final caps = DesktopCapability.defaultCaps();
     expect(caps.supportsGlobalOverlay, false);
+    expect(caps.supportsTray, false);
+  });
+
+  test('desktop capability constructor preserves explicit values', () {
+    final caps =
+        DesktopCapability(supportsGlobalOverlay: true, supportsTray: true);
+    expect(caps.supportsGlobalOverlay, true);
+    expect(caps.supportsTray, true);
   });
 }

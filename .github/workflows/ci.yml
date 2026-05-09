@@ -28,4 +28,4 @@ jobs:
           cache: pnpm
           cache-dependency-path: services/api/pnpm-lock.yaml
       - name: API tests
-        run: cd services/api && pnpm install && pnpm test
+        run: cd services/api && pnpm install --frozen-lockfile && pnpm test
