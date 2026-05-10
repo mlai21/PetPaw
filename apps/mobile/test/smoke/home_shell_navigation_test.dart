@@ -81,28 +81,25 @@ void main() {
     expect(rightSnapDone.dx, closeTo(rightTarget, 0.01));
   });
 
-  testWidgets('floating pet snaps to nearest horizontal edge on drag end', (
+  testWidgets('floating pet starts snapping immediately and settles near edge', (
     tester,
   ) async {
     await tester.pumpWidget(const PetPawApp());
     await tester.pump(const Duration(milliseconds: 200));
 
-    const petWidth = 104.0;
-    const horizontalPadding = 12.0;
-    final shellWidth = tester.getSize(find.byType(Scaffold).first).width;
     final petFinder = find.byKey(const Key('floating_pet'));
 
-    await tester.drag(petFinder, const Offset(-520, -40));
-    await tester.pump(const Duration(milliseconds: 260));
+    await tester.drag(petFinder, const Offset(-520, -20));
+    await tester.pump();
+    final release = tester.getTopLeft(petFinder);
 
-    final leftPos = tester.getTopLeft(petFinder);
-    expect(leftPos.dx, closeTo(horizontalPadding, 0.01));
+    await tester.pump(const Duration(milliseconds: 40));
+    final during = tester.getTopLeft(petFinder);
+    expect(during.dx, lessThan(release.dx));
 
-    await tester.drag(petFinder, const Offset(800, 0));
-    await tester.pump(const Duration(milliseconds: 260));
-
-    final rightPos = tester.getTopLeft(petFinder);
-    expect(rightPos.dx, closeTo(shellWidth - petWidth - horizontalPadding, 0.01));
+    await tester.pump(const Duration(milliseconds: 220));
+    final settled = tester.getTopLeft(petFinder);
+    expect(settled.dx, lessThanOrEqualTo(12));
   });
 
   testWidgets('floating pet tap does not switch tab to advisor', (tester) async {

@@ -13,9 +13,14 @@ class AdvisorChatPage extends StatefulWidget {
 class _AdvisorChatPageState extends State<AdvisorChatPage> {
   static const String _skeletonReply = '收到，我来帮你拆解。';
   static const String _fullReply = '收到，我来帮你拆解。先从最小行动开始：把任务缩小到10分钟内可完成的一步。';
-  static const Duration _skeletonHold = Duration(milliseconds: 300);
-  static const Duration _streamTick = Duration(milliseconds: 20);
+  static const Duration _skeletonHold = Duration(milliseconds: 220);
+  static const Duration _streamTickFast = Duration(milliseconds: 18);
+  static const Duration _streamTickNormal = Duration(milliseconds: 24);
+  static const int _fastTickChars = 12;
   static const String _focusKickoffChip = '帮我拆成 15 分钟起步动作';
+  static const String _procrastinationChip = '先帮我识别当前最大阻碍';
+  static const String _fitnessChip = '给我一个今天可执行的最低标准';
+  static const String _reviewChip = '先帮我列出今天最关键的1条复盘点';
   static const String _fallbackContextChip = '结合我今天的挑战给我一个起步动作';
 
   final TextEditingController _controller = TextEditingController();
@@ -153,6 +158,19 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
     if (challenge.contains('深度工作') || challenge.contains('专注')) {
       return _focusKickoffChip;
     }
+    if (challenge.contains('拖延') ||
+        challenge.contains('卡住') ||
+        challenge.contains('开始不了')) {
+      return _procrastinationChip;
+    }
+    if (challenge.contains('运动') ||
+        challenge.contains('跑步') ||
+        challenge.contains('训练')) {
+      return _fitnessChip;
+    }
+    if (challenge.contains('复盘') || challenge.contains('总结')) {
+      return _reviewChip;
+    }
     return _fallbackContextChip;
   }
 
@@ -181,7 +199,10 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
     }
 
     for (var end = _skeletonReply.length + 1; end <= _fullReply.length; end++) {
-      await Future<void>.delayed(_streamTick);
+      final step = end - _skeletonReply.length;
+      await Future<void>.delayed(
+        step <= _fastTickChars ? _streamTickFast : _streamTickNormal,
+      );
       if (!mounted || sessionId != _streamSessionId) {
         return;
       }

@@ -30,8 +30,24 @@ class _HomeShellState extends State<_HomeShell> {
   int _petSnapVersion = 0;
   Map<String, String>? _todayContextForAdvisor;
   static const _petHorizontalPadding = 12.0;
+  static const _petSnapDuration = Duration(milliseconds: 180);
+  static const _petSnapCurve = Curves.easeOutBack;
 
   static const _titles = ['今日', '宣言书', '顾问', '历史记录', '设置'];
+
+  Future<void> _snapPetToEdge({
+    required Offset from,
+    required Offset to,
+    required int snapVersion,
+  }) async {
+    const steps = 6;
+    for (var i = 1; i <= steps; i++) {
+      await Future<void>.delayed(_petSnapDuration ~/ steps);
+      if (!mounted || snapVersion != _petSnapVersion) return;
+      final t = _petSnapCurve.transform(i / steps);
+      setState(() => _petPosition = Offset.lerp(from, to, t));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,11 +116,11 @@ class _HomeShellState extends State<_HomeShell> {
                         snappedX,
                         base.dy.clamp(0, maxTop),
                       );
-
-                      Future<void>.delayed(const Duration(milliseconds: 220), () {
-                        if (!mounted || snapVersion != _petSnapVersion) return;
-                        setState(() => _petPosition = snapped);
-                      });
+                      _snapPetToEdge(
+                        from: base,
+                        to: snapped,
+                        snapVersion: snapVersion,
+                      );
                     },
                   ),
                 ),

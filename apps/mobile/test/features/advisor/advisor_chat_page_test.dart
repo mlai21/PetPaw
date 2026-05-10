@@ -21,7 +21,7 @@ void main() {
     expect(find.text('发送'), findsOneWidget);
   });
 
-  testWidgets('advisor page streams in hybrid mode: skeleton then char-by-char', (
+  testWidgets('advisor page streams in hybrid mode: 220ms skeleton then two-speed ticks', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -42,17 +42,31 @@ void main() {
       findsNothing,
     );
 
-    // 前 300ms 保持骨架句，确保“先骨架”阶段用户可感知。
-    await tester.pump(const Duration(milliseconds: 300));
+    // 前 220ms 保持骨架句，确保“先骨架”阶段用户可感知。
+    await tester.pump(const Duration(milliseconds: 220));
     expect(find.text('收到，我来帮你拆解。'), findsOneWidget);
+    expect(find.textContaining('收到，我来帮你拆解。先'), findsNothing);
 
-    // 进入逐字补全阶段后，先出现“先”。
-    await tester.pump(const Duration(milliseconds: 20));
+    // 进入逐字补全阶段后，第一段应更快：18ms 出现“先”。
+    await tester.pump(const Duration(milliseconds: 18));
     expect(find.text('收到，我来帮你拆解。先'), findsOneWidget);
 
-    await tester.pump(const Duration(milliseconds: 260));
+    // 前 12 字采用快节奏（18ms/tick）。
+    await tester.pump(const Duration(milliseconds: 198));
     expect(
-      find.textContaining('收到，我来帮你拆解。先从最小行动开始'),
+      find.textContaining('收到，我来帮你拆解。先从最小行动开始：把任务'),
+      findsOneWidget,
+    );
+
+    // 第 13 字应切到稳态（24ms/tick）。
+    await tester.pump(const Duration(milliseconds: 23));
+    expect(
+      find.textContaining('收到，我来帮你拆解。先从最小行动开始：把任务缩'),
+      findsNothing,
+    );
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(
+      find.textContaining('收到，我来帮你拆解。先从最小行动开始：把任务缩'),
       findsOneWidget,
     );
 
@@ -177,5 +191,78 @@ void main() {
     );
 
     expect(find.text('结合我今天的挑战给我一个起步动作'), findsOneWidget);
+  });
+
+  testWidgets('shows personalized chip for procrastination-like challenges', (
+    tester,
+  ) async {
+    const procrastinationChip = '先帮我识别当前最大阻碍';
+    const cases = ['我有点拖延', '任务卡住了', '今天开始不了'];
+
+    for (final challenge in cases) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AdvisorChatPage(
+              fromTodayContext: {
+                'affirmation': '我可以稳住节奏',
+                'challenge': challenge,
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text(procrastinationChip), findsOneWidget);
+    }
+  });
+
+  testWidgets('shows personalized chip for fitness-like challenges', (
+    tester,
+  ) async {
+    const fitnessChip = '给我一个今天可执行的最低标准';
+    const cases = ['今天要运动', '今晚跑步 3 公里', '我要恢复训练'];
+
+    for (final challenge in cases) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AdvisorChatPage(
+              fromTodayContext: {
+                'affirmation': '我可以按计划推进',
+                'challenge': challenge,
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text(fitnessChip), findsOneWidget);
+    }
+  });
+
+  testWidgets('shows personalized chip for review-like challenges', (tester) async {
+    const reviewChip = '先帮我列出今天最关键的1条复盘点';
+    const cases = ['今晚先做复盘', '我想做今天总结'];
+
+    for (final challenge in cases) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AdvisorChatPage(
+              fromTodayContext: {
+                'affirmation': '我愿意诚实回看',
+                'challenge': challenge,
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text(reviewChip), findsOneWidget);
+    }
   });
 }
