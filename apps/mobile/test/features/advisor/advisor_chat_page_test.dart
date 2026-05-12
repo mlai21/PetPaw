@@ -3,6 +3,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pet_paw_app/features/advisor/advisor_chat_page.dart';
 
 void main() {
+  testWidgets('advisor page shows iOS-like centered header layout', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: AdvisorChatPage(),
+        ),
+      ),
+    );
+
+    expect(find.text('我的顾问'), findsOneWidget);
+    expect(find.text('随时在线，专为你'), findsOneWidget);
+    expect(find.byIcon(Icons.menu), findsOneWidget);
+    expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+  });
+
   testWidgets('advisor page renders welcome guide and suggestion chips', (
     tester,
   ) async {
@@ -18,7 +35,7 @@ void main() {
     expect(find.text('你可以这样开始：'), findsOneWidget);
     expect(find.text('帮我拆解今天最重要的一步'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('发送'), findsOneWidget);
+    expect(find.byKey(const Key('advisor_send_button')), findsOneWidget);
   });
 
   testWidgets('advisor page streams in hybrid mode: 220ms skeleton then two-speed ticks', (
@@ -33,7 +50,7 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), '我今天该先做什么？');
-    await tester.tap(find.text('发送'));
+    await tester.tap(find.byKey(const Key('advisor_send_button')));
     await tester.pump();
 
     expect(find.text('收到，我来帮你拆解。'), findsOneWidget);
@@ -91,7 +108,7 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), '第一个问题');
-    await tester.tap(find.text('发送'));
+    await tester.tap(find.byKey(const Key('advisor_send_button')));
     await tester.pump();
 
     await tester.pump(const Duration(milliseconds: 320));
@@ -100,7 +117,7 @@ void main() {
     final interruptedText = tester.widget<Text>(interruptedTextFinder).data!;
 
     await tester.enterText(find.byType(TextField), '第二个问题');
-    await tester.tap(find.text('发送'));
+    await tester.tap(find.byKey(const Key('advisor_send_button')));
     await tester.pump();
 
     expect(find.text('第一个问题'), findsOneWidget);
@@ -120,6 +137,38 @@ void main() {
 
     // 清空剩余流式计时器，避免测试结束时残留 pending timer。
     await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('thinking details can expand and collapse while streaming', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: AdvisorChatPage(),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), '我今天该先做什么？');
+    await tester.tap(find.byKey(const Key('advisor_send_button')));
+    await tester.pump();
+
+    expect(find.text('... 正在思考 ...'), findsOneWidget);
+    expect(find.text('检索来源'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('advisor_thinking_toggle')));
+    await tester.pump();
+    expect(find.text('检索来源'), findsOneWidget);
+    expect(find.textContaining('wikipedia.org'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('advisor_thinking_toggle')));
+    await tester.pump();
+    expect(find.text('检索来源'), findsNothing);
+
+    // Drain streaming timers to avoid pending timer at test teardown.
+    await tester.pump(const Duration(milliseconds: 2200));
     await tester.pumpAndSettle();
   });
 
