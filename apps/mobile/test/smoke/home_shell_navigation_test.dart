@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pet_paw_app/core/app.dart';
+import 'package:pet_paw_app/data/remote/advisor_chat_repository.dart';
 
 void main() {
   testWidgets('home shell shows requested tabs and can switch to settings', (
     tester,
   ) async {
-    await tester.pumpWidget(const PetPawApp());
+    await tester.pumpWidget(const PetPawApp(advisorRepository: const StubAdvisorChatRepository()));
 
     expect(find.text('今日'), findsWidgets);
     expect(find.text('宣言书'), findsOneWidget);
@@ -22,7 +23,7 @@ void main() {
   });
 
   testWidgets('floating pet is hidden on settings tab only', (tester) async {
-    await tester.pumpWidget(const PetPawApp());
+    await tester.pumpWidget(const PetPawApp(advisorRepository: const StubAdvisorChatRepository()));
 
     expect(find.byKey(const Key('floating_pet')), findsOneWidget);
 
@@ -33,7 +34,7 @@ void main() {
   });
 
   testWidgets('floating pet can be dragged to a new position', (tester) async {
-    await tester.pumpWidget(const PetPawApp());
+    await tester.pumpWidget(const PetPawApp(advisorRepository: const StubAdvisorChatRepository()));
     await tester.pump(const Duration(milliseconds: 200));
 
     final petFinder = find.byKey(const Key('floating_pet'));
@@ -50,7 +51,7 @@ void main() {
   testWidgets('floating pet snaps to horizontal edge on extreme drags', (
     tester,
   ) async {
-    await tester.pumpWidget(const PetPawApp());
+    await tester.pumpWidget(const PetPawApp(advisorRepository: const StubAdvisorChatRepository()));
     await tester.pump(const Duration(milliseconds: 200));
 
     const petWidth = 104.0;
@@ -84,7 +85,7 @@ void main() {
   testWidgets('floating pet starts snapping immediately and settles near edge', (
     tester,
   ) async {
-    await tester.pumpWidget(const PetPawApp());
+    await tester.pumpWidget(const PetPawApp(advisorRepository: const StubAdvisorChatRepository()));
     await tester.pump(const Duration(milliseconds: 200));
 
     final petFinder = find.byKey(const Key('floating_pet'));
@@ -103,7 +104,7 @@ void main() {
   });
 
   testWidgets('floating pet tap does not switch tab to advisor', (tester) async {
-    await tester.pumpWidget(const PetPawApp());
+    await tester.pumpWidget(const PetPawApp(advisorRepository: const StubAdvisorChatRepository()));
 
     expect(find.text('肯定昨天的自己'), findsOneWidget);
 
@@ -117,7 +118,7 @@ void main() {
   testWidgets(
     'today completed CTA switches to advisor with context and can return to today',
     (tester) async {
-      await tester.pumpWidget(const PetPawApp());
+      await tester.pumpWidget(const PetPawApp(advisorRepository: const StubAdvisorChatRepository()));
 
       await tester.enterText(
         find.byKey(const Key('today_affirm_input')),
@@ -131,7 +132,10 @@ void main() {
       await tester.tap(find.text('带着今天的状态问顾问'));
       await tester.pump();
 
-      expect(find.text('你可以这样开始：'), findsOneWidget);
+      expect(
+        find.text('我已看到你今天的挑战方向，想先拆解执行步骤，还是先排除阻碍？'),
+        findsOneWidget,
+      );
       expect(find.text('返回今日'), findsOneWidget);
 
       await tester.tap(find.text('返回今日'));

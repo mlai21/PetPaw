@@ -8,3 +8,4 @@ apps/mobile/.env
 apps/mobile/.dart_tool/
 apps/mobile/build/
 services/api/node_modules/
+services/api/dist/

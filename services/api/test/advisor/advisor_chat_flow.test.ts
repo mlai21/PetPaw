@@ -11,5 +11,11 @@ describe('advisor chat flow', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('answer');
     expect(res.body).toHaveProperty('citations');
+    expect(res.body).toHaveProperty('meta');
+    expect(res.body.meta).toMatchObject({
+      route: expect.any(String),
+      llmOk: expect.any(Boolean),
+      model: expect.any(String),
+    });
   });
 });

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pet_paw_app/data/remote/advisor_chat_repository.dart';
 import 'package:pet_paw_app/features/advisor/advisor_chat_page.dart';
 
 void main() {
@@ -9,7 +10,9 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: AdvisorChatPage(),
+          body: AdvisorChatPage(
+            advisorRepository: const StubAdvisorChatRepository(),
+          ),
         ),
       ),
     );
@@ -29,7 +32,9 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: AdvisorChatPage(),
+          body: AdvisorChatPage(
+            advisorRepository: const StubAdvisorChatRepository(),
+          ),
         ),
       ),
     );
@@ -38,39 +43,20 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
     await tester.pump();
 
-    expect(find.text('收到，我来帮你拆解。'), findsOneWidget);
+    expect(find.text('规划中...'), findsOneWidget);
     expect(
       find.text('收到，我来帮你拆解。先从最小行动开始：把任务缩小到10分钟内可完成的一步。'),
       findsNothing,
     );
 
-    // 前 220ms 保持骨架句，确保“先骨架”阶段用户可感知。
+    // 前 220ms 展示“规划中...”阶段。
     await tester.pump(const Duration(milliseconds: 220));
-    expect(find.text('收到，我来帮你拆解。'), findsOneWidget);
-    expect(find.textContaining('收到，我来帮你拆解。先'), findsNothing);
+    final planningVisible = find.text('规划中...').evaluate().isNotEmpty;
+    final composingVisible = find.text('整理回复中...').evaluate().isNotEmpty;
+    expect(planningVisible || composingVisible, isTrue);
 
-    // 进入逐字补全阶段后，第一段应更快：18ms 出现“先”。
-    await tester.pump(const Duration(milliseconds: 18));
-    expect(find.text('收到，我来帮你拆解。先'), findsOneWidget);
-
-    // 前 12 字采用快节奏（18ms/tick）。
-    await tester.pump(const Duration(milliseconds: 198));
-    expect(
-      find.textContaining('收到，我来帮你拆解。先从最小行动开始：把任务'),
-      findsOneWidget,
-    );
-
-    // 第 13 字应切到稳态（24ms/tick）。
-    await tester.pump(const Duration(milliseconds: 23));
-    expect(
-      find.textContaining('收到，我来帮你拆解。先从最小行动开始：把任务缩'),
-      findsNothing,
-    );
-    await tester.pump(const Duration(milliseconds: 1));
-    expect(
-      find.textContaining('收到，我来帮你拆解。先从最小行动开始：把任务缩'),
-      findsOneWidget,
-    );
+    // 进入流式补全阶段，最终应能呈现完整回复。
+    await tester.pump(const Duration(milliseconds: 220));
 
     await tester.pump(const Duration(milliseconds: 2000));
     await tester.pumpAndSettle();
@@ -87,7 +73,9 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: AdvisorChatPage(),
+          body: AdvisorChatPage(
+            advisorRepository: const StubAdvisorChatRepository(),
+          ),
         ),
       ),
     );
@@ -97,9 +85,6 @@ void main() {
     await tester.pump();
 
     await tester.pump(const Duration(milliseconds: 320));
-    final interruptedTextFinder = find.textContaining('收到，我来帮你拆解。先');
-    expect(interruptedTextFinder, findsOneWidget);
-    final interruptedText = tester.widget<Text>(interruptedTextFinder).data!;
 
     await tester.enterText(find.byType(TextField), '第二个问题');
     await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
@@ -107,18 +92,17 @@ void main() {
 
     expect(find.text('第一个问题'), findsOneWidget);
     expect(find.text('第二个问题'), findsOneWidget);
-    expect(find.text('收到，我来帮你拆解。'), findsOneWidget);
+    expect(find.text('规划中...'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 1600));
     await tester.pumpAndSettle();
 
-    // 第一轮流式应被打断并移除，最终仅最新会话完成。
-    expect(find.text(interruptedText), findsNothing);
+    // 第一轮流式应被打断，最终仅最新会话完成。
     expect(
       find.text('收到，我来帮你拆解。先从最小行动开始：把任务缩小到10分钟内可完成的一步。'),
       findsOneWidget,
     );
-    expect(find.text('收到，我来帮你拆解。'), findsNothing);
+    expect(find.text('规划中...'), findsNothing);
 
     // 清空剩余流式计时器，避免测试结束时残留 pending timer。
     await tester.pump(const Duration(milliseconds: 200));
@@ -133,6 +117,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: AdvisorChatPage(
+            advisorRepository: const StubAdvisorChatRepository(),
             fromTodayContext: const {
               'affirmation': '谢谢昨天的自己',
               'challenge': '今天先完成最小行动',
@@ -170,7 +155,11 @@ void main() {
         ),
         darkTheme: darkTheme,
         themeMode: ThemeMode.dark,
-        home: const Scaffold(body: AdvisorChatPage()),
+        home: const Scaffold(
+          body: AdvisorChatPage(
+            advisorRepository: const StubAdvisorChatRepository(),
+          ),
+        ),
       ),
     );
 

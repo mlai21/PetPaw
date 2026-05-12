@@ -1,24 +1,36 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:pet_paw_app/data/remote/advisor_chat_repository.dart';
 
 class AdvisorChatPage extends StatefulWidget {
-  const AdvisorChatPage({super.key, this.fromTodayContext, this.onBackToToday});
+  const AdvisorChatPage({
+    super.key,
+    this.fromTodayContext,
+    this.onBackToToday,
+    this.advisorRepository,
+  });
 
   final Map<String, String>? fromTodayContext;
   final VoidCallback? onBackToToday;
+
+  /// 未传入时使用 [HttpAdvisorChatRepository.fromEnvironment] 连接后端顾问接口。
+  final AdvisorChatRepository? advisorRepository;
 
   @override
   State<AdvisorChatPage> createState() => _AdvisorChatPageState();
 }
 
 class _AdvisorChatPageState extends State<AdvisorChatPage> {
-  static const String _skeletonReply = '收到，我来帮你拆解。';
-  static const String _fullReply = '收到，我来帮你拆解。先从最小行动开始：把任务缩小到10分钟内可完成的一步。';
+  static const String _skeletonReply = '规划中...';
+  static const Duration _requestTimeout = Duration(seconds: 45);
   static const Duration _skeletonHold = Duration(milliseconds: 220);
   static const Duration _streamTickFast = Duration(milliseconds: 18);
   static const Duration _streamTickNormal = Duration(milliseconds: 24);
   static const int _fastTickChars = 12;
 
   final TextEditingController _controller = TextEditingController();
+  late final AdvisorChatRepository _advisorRepository;
   late final List<_ChatMessage> _messages;
   bool _isStreaming = false;
   int _streamSessionId = 0;
@@ -26,6 +38,8 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
   @override
   void initState() {
     super.initState();
+    _advisorRepository =
+        widget.advisorRepository ?? HttpAdvisorChatRepository.fromEnvironment();
     _messages = [_ChatMessage(role: 'advisor', text: '问问你的顾问')];
     if (widget.fromTodayContext != null) {
       _messages.add(
@@ -40,6 +54,7 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
   @override
   void dispose() {
     _controller.dispose();
+    _advisorRepository.dispose();
     super.dispose();
   }
 
@@ -62,7 +77,12 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
             itemCount: _messages.length,
             itemBuilder: (context, index) {
               final message = _messages[index];
-              return _messageBubble(context, message.role, message.text);
+              return _messageBubble(
+                context,
+                message.role,
+                message.text,
+                message.todos,
+              );
             },
           ),
         ),
@@ -123,7 +143,12 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
     );
   }
 
-  Widget _messageBubble(BuildContext context, String role, String text) {
+  Widget _messageBubble(
+    BuildContext context,
+    String role,
+    String text,
+    List<_TodoProgressItem>? todos,
+  ) {
     final isUser = role == 'user';
     final palette = _AdvisorPalette.of(context);
 
@@ -140,13 +165,50 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
         borderRadius: BorderRadius.circular(16),
         border: isUser ? null : Border.all(color: palette.bubbleBorder),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: isUser ? palette.userBubbleText : palette.advisorBubbleText,
-          fontSize: 16,
-          height: 1.45,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              color: isUser ? palette.userBubbleText : palette.advisorBubbleText,
+              fontSize: 16,
+              height: 1.45,
+            ),
+          ),
+          if (todos != null && todos.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            for (final todo in todos)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      todo.done
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      size: 17,
+                      color: todo.done
+                          ? palette.avatarEnd
+                          : palette.advisorBubbleText.withValues(alpha: 0.65),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        todo.title,
+                        style: TextStyle(
+                          color: palette.advisorBubbleText,
+                          fontSize: 14,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ],
       ),
     );
 
@@ -204,8 +266,141 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
       return;
     }
 
-    for (var end = _skeletonReply.length + 1; end <= _fullReply.length; end++) {
-      final step = end - _skeletonReply.length;
+    late AdvisorReply reply;
+    try {
+      reply = await _advisorRepository
+          .askAdvisor(
+            text,
+            allowSearch: false,
+          )
+          .timeout(_requestTimeout);
+    } catch (_) {
+      if (!mounted || sessionId != _streamSessionId) {
+        return;
+      }
+      setState(() {
+        _messages[_messages.length - 1] = const _ChatMessage(
+          role: 'advisor',
+          text: '网络有点慢，我再试一次...',
+        );
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      if (!mounted || sessionId != _streamSessionId) {
+        return;
+      }
+      try {
+        reply = await _advisorRepository
+            .askAdvisor(
+              text,
+              allowSearch: false,
+            )
+            .timeout(_requestTimeout);
+      } on AdvisorChatHttpException catch (e) {
+        if (!mounted || sessionId != _streamSessionId) {
+          return;
+        }
+        setState(() {
+          _messages[_messages.length - 1] = _ChatMessage(
+            role: 'advisor',
+            text: e.message,
+          );
+          _isStreaming = false;
+        });
+        return;
+      } on TimeoutException {
+        if (!mounted || sessionId != _streamSessionId) {
+          return;
+        }
+        setState(() {
+          _messages[_messages.length - 1] = const _ChatMessage(
+            role: 'advisor',
+            text: '规划超时了，请确认 API 服务已启动（并检查网络）后重试。',
+          );
+          _isStreaming = false;
+        });
+        return;
+      } catch (_) {
+        if (!mounted || sessionId != _streamSessionId) {
+          return;
+        }
+        setState(() {
+          _messages[_messages.length - 1] = const _ChatMessage(
+            role: 'advisor',
+            text: '网络或顾问服务暂时不可用，请稍后重试。',
+          );
+          _isStreaming = false;
+        });
+        return;
+      }
+    }
+
+    if (!mounted || sessionId != _streamSessionId) {
+      return;
+    }
+
+    if (reply.tasks.isNotEmpty) {
+      final todos = reply.tasks
+          .map(
+            (task) => _TodoProgressItem(
+              id: task.id,
+              title: task.title,
+              done: false,
+            ),
+          )
+          .toList();
+      setState(() {
+        _messages[_messages.length - 1] = _ChatMessage(
+          role: 'advisor',
+          text: '规划完成，开始执行：',
+          todos: todos,
+        );
+      });
+
+      for (final task in reply.tasks) {
+        await Future<void>.delayed(const Duration(milliseconds: 380));
+        if (!mounted || sessionId != _streamSessionId) {
+          return;
+        }
+        final shouldDone = reply.completedTaskIds.contains(task.id);
+        setState(() {
+          final current = _messages.last;
+          final nextTodos = (current.todos ?? [])
+              .map(
+                (todo) => todo.id == task.id
+                    ? _TodoProgressItem(
+                        id: todo.id,
+                        title: todo.title,
+                        done: shouldDone,
+                      )
+                    : todo,
+              )
+              .toList();
+          _messages[_messages.length - 1] = _ChatMessage(
+            role: current.role,
+            text: current.text,
+            todos: nextTodos,
+          );
+        });
+      }
+
+      setState(() {
+        _messages.add(const _ChatMessage(role: 'advisor', text: '整理回复中...'));
+      });
+    } else {
+      setState(() {
+        _messages[_messages.length - 1] =
+            const _ChatMessage(role: 'advisor', text: '整理回复中...');
+      });
+    }
+
+    final fullReply = reply.answer;
+    final targetIndex = _messages.length - 1;
+    final streamStart = fullReply.startsWith(_skeletonReply)
+        ? _skeletonReply.length + 1
+        : 1;
+    for (var end = streamStart; end <= fullReply.length; end++) {
+      final step =
+          fullReply.startsWith(_skeletonReply) ? end - _skeletonReply.length : end;
       await Future<void>.delayed(
         step <= _fastTickChars ? _streamTickFast : _streamTickNormal,
       );
@@ -214,9 +409,9 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
       }
 
       setState(() {
-        _messages[_messages.length - 1] = _ChatMessage(
+        _messages[targetIndex] = _ChatMessage(
           role: 'advisor',
-          text: _fullReply.substring(0, end),
+          text: fullReply.substring(0, end),
         );
       });
     }
@@ -231,10 +426,27 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
 }
 
 class _ChatMessage {
-  const _ChatMessage({required this.role, required this.text});
+  const _ChatMessage({
+    required this.role,
+    required this.text,
+    this.todos,
+  });
 
   final String role;
   final String text;
+  final List<_TodoProgressItem>? todos;
+}
+
+class _TodoProgressItem {
+  const _TodoProgressItem({
+    required this.id,
+    required this.title,
+    required this.done,
+  });
+
+  final String id;
+  final String title;
+  final bool done;
 }
 
 class _CircleIconButton extends StatelessWidget {

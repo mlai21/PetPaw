@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_paw_app/data/remote/advisor_chat_repository.dart';
 import 'package:pet_paw_app/features/advisor/advisor_chat_page.dart';
 import 'package:pet_paw_app/features/history/history_page.dart';
 import 'package:pet_paw_app/features/manifesto/manifesto_page.dart';
@@ -6,7 +7,10 @@ import 'package:pet_paw_app/features/settings/settings_page.dart';
 import 'package:pet_paw_app/features/today/today_page.dart';
 
 class PetPawApp extends StatelessWidget {
-  const PetPawApp({super.key});
+  const PetPawApp({super.key, this.advisorRepository});
+
+  /// 测试注入 [StubAdvisorChatRepository]；生产环境省略，由 [AdvisorChatPage] 默认走 HTTP。
+  final AdvisorChatRepository? advisorRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -54,13 +58,15 @@ class PetPawApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const _HomeShell(),
+      home: _HomeShell(advisorRepository: advisorRepository),
     );
   }
 }
 
 class _HomeShell extends StatefulWidget {
-  const _HomeShell();
+  const _HomeShell({this.advisorRepository});
+
+  final AdvisorChatRepository? advisorRepository;
 
   @override
   State<_HomeShell> createState() => _HomeShellState();
@@ -107,6 +113,7 @@ class _HomeShellState extends State<_HomeShell> {
       ),
       const ManifestoPage(),
       AdvisorChatPage(
+        advisorRepository: widget.advisorRepository,
         fromTodayContext: _todayContextForAdvisor,
         onBackToToday: () {
           setState(() => _currentIndex = 0);
