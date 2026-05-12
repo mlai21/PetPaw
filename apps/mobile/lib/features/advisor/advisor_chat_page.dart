@@ -27,6 +27,7 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
   late final List<_ChatMessage> _messages;
   bool _isStreaming = false;
   int _streamSessionId = 0;
+  bool _thinkingDetailsExpanded = false;
 
   @override
   void initState() {
@@ -53,6 +54,7 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
     final suggestionChips = _buildSuggestionChips();
     return Column(
       children: [
+        const _AdvisorHeader(),
         if (widget.fromTodayContext != null && widget.onBackToToday != null)
           Align(
             alignment: Alignment.centerLeft,
@@ -85,8 +87,11 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: _messages.length,
+            itemCount: _messages.length + (_isStreaming ? 1 : 0),
             itemBuilder: (context, index) {
+              if (_isStreaming && index == _messages.length) {
+                return _buildThinkingCard();
+              }
               final message = _messages[index];
               return _messageBubble(context, message.role, message.text);
             },
@@ -95,21 +100,43 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
         SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
             child: Row(
               children: [
+                _InputIconButton(icon: Icons.add, onPressed: () {}),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: const InputDecoration(
-                      hintText: '输入你现在最想问的问题',
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: const Color(0xFFE9E9EC)),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _controller,
+                              decoration: const InputDecoration(
+                                hintText: '输入你的问题或需求...',
+                                border: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          _InputIconButton(icon: Icons.mic_none, onPressed: () {}),
+                        ],
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton(
+                _InputIconButton(
+                  key: const Key('advisor_send_button'),
+                  icon: Icons.north,
                   onPressed: _sendMessage,
-                  child: const Text('发送'),
+                  fillColor: const Color(0xFFE5E5EA),
                 ),
               ],
             ),
@@ -124,15 +151,78 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 12),
+        constraints: const BoxConstraints(maxWidth: 320),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: isUser
-              ? Theme.of(context).colorScheme.primaryContainer
-              : Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE9E9EC)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0C000000),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Text(text),
+      ),
+    );
+  }
+
+  Widget _buildThinkingCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE9E9EC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '... 正在思考 ...',
+                  style: TextStyle(color: Color(0xFF7A7A82)),
+                ),
+              ),
+              IconButton(
+                key: const Key('advisor_thinking_toggle'),
+                onPressed: () => setState(
+                  () => _thinkingDetailsExpanded = !_thinkingDetailsExpanded,
+                ),
+                icon: Icon(
+                  _thinkingDetailsExpanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                ),
+              ),
+            ],
+          ),
+          if (_thinkingDetailsExpanded)
+            const Padding(
+              padding: EdgeInsets.only(top: 4, left: 2, right: 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('检索来源'),
+                  SizedBox(height: 4),
+                  Text('- wikipedia.org'),
+                  Text('- productivityist.com'),
+                  SizedBox(height: 8),
+                  Text('关键词'),
+                  SizedBox(height: 4),
+                  Text('- 时间管理'),
+                  Text('- 夜间效率'),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -190,6 +280,7 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
       _messages.add(_ChatMessage(role: 'user', text: text));
       _messages.add(const _ChatMessage(role: 'advisor', text: _skeletonReply));
       _isStreaming = true;
+      _thinkingDetailsExpanded = false;
     });
     _controller.clear();
 
@@ -229,4 +320,71 @@ class _ChatMessage {
 
   final String role;
   final String text;
+}
+
+class _AdvisorHeader extends StatelessWidget {
+  const _AdvisorHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFEFEFF1))),
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.menu, size: 22),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '我的顾问',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  '随时在线，专为你',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF888892)),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.edit_outlined, size: 22),
+        ],
+      ),
+    );
+  }
+}
+
+class _InputIconButton extends StatelessWidget {
+  const _InputIconButton({
+    super.key,
+    required this.icon,
+    required this.onPressed,
+    this.fillColor = Colors.white,
+  });
+
+  final IconData icon;
+  final VoidCallback onPressed;
+  final Color fillColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: fillColor,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Icon(icon, size: 20),
+        ),
+      ),
+    );
+  }
 }
