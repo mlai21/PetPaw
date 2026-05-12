@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pet_paw_app/features/advisor/advisor_chat_page.dart';
 
 void main() {
-  testWidgets('advisor page renders welcome guide and suggestion chips', (
+  testWidgets('advisor page renders chat shell controls', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -15,13 +15,15 @@ void main() {
     );
 
     expect(find.text('问问你的顾问'), findsOneWidget);
-    expect(find.text('你可以这样开始：'), findsOneWidget);
-    expect(find.text('帮我拆解今天最重要的一步'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('发送'), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.add), findsOneWidget);
   });
 
-  testWidgets('advisor page streams in hybrid mode: 220ms skeleton then two-speed ticks', (
+  testWidgets(
+      'advisor page streams in hybrid mode: 220ms skeleton then two-speed ticks',
+      (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -33,7 +35,7 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), '我今天该先做什么？');
-    await tester.tap(find.text('发送'));
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
     await tester.pump();
 
     expect(find.text('收到，我来帮你拆解。'), findsOneWidget);
@@ -91,7 +93,7 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), '第一个问题');
-    await tester.tap(find.text('发送'));
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
     await tester.pump();
 
     await tester.pump(const Duration(milliseconds: 320));
@@ -100,7 +102,7 @@ void main() {
     final interruptedText = tester.widget<Text>(interruptedTextFinder).data!;
 
     await tester.enterText(find.byType(TextField), '第二个问题');
-    await tester.tap(find.text('发送'));
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
     await tester.pump();
 
     expect(find.text('第一个问题'), findsOneWidget);
@@ -148,124 +150,6 @@ void main() {
     expect(returned, isTrue);
   });
 
-  testWidgets('shows personalized chip for focus challenge and tap only fills input', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: AdvisorChatPage(
-            fromTodayContext: {
-              'affirmation': '我有能力进入心流',
-              'challenge': '今天要进行2小时深度工作，减少分心',
-            },
-          ),
-        ),
-      ),
-    );
-
-    expect(find.text('帮我拆成 15 分钟起步动作'), findsOneWidget);
-
-    await tester.tap(find.text('帮我拆成 15 分钟起步动作'));
-    await tester.pump();
-
-    final input = tester.widget<TextField>(find.byType(TextField));
-    expect(input.controller?.text, '帮我拆成 15 分钟起步动作');
-    expect(find.text('收到，我来帮你拆解。'), findsNothing);
-  });
-
-  testWidgets('shows fallback chip when challenge has no mapped keyword', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: AdvisorChatPage(
-            fromTodayContext: {
-              'affirmation': '我可以稳定推进',
-              'challenge': '今天把例会纪要整理清楚',
-            },
-          ),
-        ),
-      ),
-    );
-
-    expect(find.text('结合我今天的挑战给我一个起步动作'), findsOneWidget);
-  });
-
-  testWidgets('shows personalized chip for procrastination-like challenges', (
-    tester,
-  ) async {
-    const procrastinationChip = '先帮我识别当前最大阻碍';
-    const cases = ['我有点拖延', '任务卡住了', '今天开始不了'];
-
-    for (final challenge in cases) {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AdvisorChatPage(
-              fromTodayContext: {
-                'affirmation': '我可以稳住节奏',
-                'challenge': challenge,
-              },
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      expect(find.text(procrastinationChip), findsOneWidget);
-    }
-  });
-
-  testWidgets('shows personalized chip for fitness-like challenges', (
-    tester,
-  ) async {
-    const fitnessChip = '给我一个今天可执行的最低标准';
-    const cases = ['今天要运动', '今晚跑步 3 公里', '我要恢复训练'];
-
-    for (final challenge in cases) {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AdvisorChatPage(
-              fromTodayContext: {
-                'affirmation': '我可以按计划推进',
-                'challenge': challenge,
-              },
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      expect(find.text(fitnessChip), findsOneWidget);
-    }
-  });
-
-  testWidgets('shows personalized chip for review-like challenges', (tester) async {
-    const reviewChip = '先帮我列出今天最关键的1条复盘点';
-    const cases = ['今晚先做复盘', '我想做今天总结'];
-
-    for (final challenge in cases) {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: AdvisorChatPage(
-              fromTodayContext: {
-                'affirmation': '我愿意诚实回看',
-                'challenge': challenge,
-              },
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      expect(find.text(reviewChip), findsOneWidget);
-    }
-  });
-
   testWidgets('advisor bubble follows dark theme color tokens', (tester) async {
     final darkTheme = ThemeData(
       useMaterial3: true,
@@ -294,14 +178,15 @@ void main() {
         .ancestor(
           of: find.text('问问你的顾问'),
           matching: find.byWidgetPredicate(
-            (widget) => widget is Container && widget.decoration is BoxDecoration,
+            (widget) =>
+                widget is Container && widget.decoration is BoxDecoration,
           ),
         )
         .first;
     final bubbleContainer = tester.widget<Container>(messageBubbleFinder);
     final bubbleDecoration = bubbleContainer.decoration! as BoxDecoration;
 
-    expect(bubbleDecoration.color, darkTheme.colorScheme.surfaceContainerHighest);
+    expect(bubbleDecoration.color, darkTheme.colorScheme.surfaceContainerLow);
     expect(bubbleDecoration.color, isNot(Colors.white));
   });
 }

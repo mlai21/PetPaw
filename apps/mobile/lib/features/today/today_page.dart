@@ -12,6 +12,7 @@ class TodayPage extends StatefulWidget {
 class _TodayPageState extends State<TodayPage> {
   final _affirmController = TextEditingController();
   final _challengeController = TextEditingController();
+  bool _showChallengeSuggestions = false;
 
   bool get _isComplete =>
       _affirmController.text.trim().isNotEmpty &&
@@ -54,6 +55,29 @@ class _TodayPageState extends State<TodayPage> {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        FilledButton.tonal(
+          onPressed: () => setState(() => _showChallengeSuggestions = true),
+          child: const Text('获取建议'),
+        ),
+        if (_showChallengeSuggestions) ...const [
+          SizedBox(height: 12),
+          Card(
+            elevation: 1,
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('来自宣言书的建议项'),
+                  SizedBox(height: 8),
+                  Text('Run 3km'),
+                  Text('晚间复盘 10 分钟'),
+                ],
+              ),
+            ),
+          ),
+        ],
         if (_isComplete) ...[
           const SizedBox(height: 12),
           FilledButton(
@@ -85,6 +109,7 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      elevation: 1,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

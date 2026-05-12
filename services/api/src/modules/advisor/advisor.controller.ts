@@ -5,6 +5,6 @@ const advisorService = new AdvisorService();
 export const advisorRouter = Router();
 
 advisorRouter.post('/chat', async (req, res) => {
-  const output = advisorService.chat(req.body);
+  const output = await advisorService.chat(req.body);
   res.json(output);
 });

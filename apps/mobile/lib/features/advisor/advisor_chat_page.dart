@@ -17,11 +17,6 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
   static const Duration _streamTickFast = Duration(milliseconds: 18);
   static const Duration _streamTickNormal = Duration(milliseconds: 24);
   static const int _fastTickChars = 12;
-  static const String _focusKickoffChip = '帮我拆成 15 分钟起步动作';
-  static const String _procrastinationChip = '先帮我识别当前最大阻碍';
-  static const String _fitnessChip = '给我一个今天可执行的最低标准';
-  static const String _reviewChip = '先帮我列出今天最关键的1条复盘点';
-  static const String _fallbackContextChip = '结合我今天的挑战给我一个起步动作';
 
   final TextEditingController _controller = TextEditingController();
   late final List<_ChatMessage> _messages;
@@ -50,7 +45,7 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    final suggestionChips = _buildSuggestionChips();
+    final palette = _AdvisorPalette.of(context);
     return Column(
       children: [
         if (widget.fromTodayContext != null && widget.onBackToToday != null)
@@ -61,30 +56,9 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
               child: const Text('返回今日'),
             ),
           ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 12, 16, 6),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text('你可以这样开始：'),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Wrap(
-            spacing: 8,
-            children: [
-              for (final chipText in suggestionChips)
-                ActionChip(
-                  label: Text(chipText),
-                  onPressed: () => _controller.text = chipText,
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             itemCount: _messages.length,
             itemBuilder: (context, index) {
               final message = _messages[index];
@@ -94,22 +68,52 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
         ),
         SafeArea(
           top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: palette.inputBarBackground,
+              border: Border(top: BorderSide(color: palette.divider)),
+            ),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: Row(
               children: [
+                _CircleIconButton(
+                  icon: Icons.add,
+                  background: palette.actionButtonBackground,
+                  foreground: palette.actionButtonForeground,
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    decoration: const InputDecoration(
+                    style: TextStyle(color: palette.inputText),
+                    decoration: InputDecoration(
                       hintText: '输入你现在最想问的问题',
+                      hintStyle: TextStyle(color: palette.inputHint),
+                      filled: true,
+                      fillColor: palette.inputBackground,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(22),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton(
+                _CircleIconButton(
+                  icon: Icons.mic_none_rounded,
+                  background: palette.actionButtonBackground,
+                  foreground: palette.actionButtonForeground,
+                ),
+                const SizedBox(width: 8),
+                _CircleIconButton(
                   onPressed: _sendMessage,
-                  child: const Text('发送'),
+                  icon: Icons.arrow_upward_rounded,
+                  background: palette.sendButtonBackground,
+                  foreground: palette.sendButtonForeground,
                 ),
               ],
             ),
@@ -121,57 +125,59 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
 
   Widget _messageBubble(BuildContext context, String role, String text) {
     final isUser = role == 'user';
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isUser
-              ? Theme.of(context).colorScheme.primaryContainer
-              : Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+    final palette = _AdvisorPalette.of(context);
+
+    final bubble = Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.72,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isUser
+            ? palette.userBubbleBackground
+            : palette.advisorBubbleBackground,
+        borderRadius: BorderRadius.circular(16),
+        border: isUser ? null : Border.all(color: palette.bubbleBorder),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: isUser ? palette.userBubbleText : palette.advisorBubbleText,
+          fontSize: 16,
+          height: 1.45,
         ),
-        child: Text(text),
       ),
     );
-  }
 
-  List<String> _buildSuggestionChips() {
-    final rawChips = <String>[
-      if (_resolveContextChip() case final contextChip?) contextChip,
-      '帮我拆解今天最重要的一步',
-      '我卡住了，给我一个最小行动',
-    ];
-    final seen = <String>{};
-    return [
-      for (final chip in rawChips)
-        if (seen.add(chip)) chip,
-    ];
-  }
+    if (isUser) {
+      return Align(alignment: Alignment.centerRight, child: bubble);
+    }
 
-  String? _resolveContextChip() {
-    final challenge = widget.fromTodayContext?['challenge']?.trim();
-    if (challenge == null || challenge.isEmpty) {
-      return null;
-    }
-    if (challenge.contains('深度工作') || challenge.contains('专注')) {
-      return _focusKickoffChip;
-    }
-    if (challenge.contains('拖延') ||
-        challenge.contains('卡住') ||
-        challenge.contains('开始不了')) {
-      return _procrastinationChip;
-    }
-    if (challenge.contains('运动') ||
-        challenge.contains('跑步') ||
-        challenge.contains('训练')) {
-      return _fitnessChip;
-    }
-    if (challenge.contains('复盘') || challenge.contains('总结')) {
-      return _reviewChip;
-    }
-    return _fallbackContextChip;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            margin: const EdgeInsets.only(top: 4, right: 10),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [palette.avatarStart, palette.avatarEnd],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child:
+                const Icon(Icons.auto_awesome, size: 16, color: Colors.white),
+          ),
+          Flexible(child: bubble),
+        ],
+      ),
+    );
   }
 
   Future<void> _sendMessage() async {
@@ -229,4 +235,95 @@ class _ChatMessage {
 
   final String role;
   final String text;
+}
+
+class _CircleIconButton extends StatelessWidget {
+  const _CircleIconButton({
+    required this.icon,
+    required this.background,
+    required this.foreground,
+    this.onPressed,
+  });
+
+  final IconData icon;
+  final Color background;
+  final Color foreground;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: background,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(icon, size: 20, color: foreground),
+        ),
+      ),
+    );
+  }
+}
+
+class _AdvisorPalette {
+  const _AdvisorPalette({
+    required this.advisorBubbleBackground,
+    required this.advisorBubbleText,
+    required this.userBubbleBackground,
+    required this.userBubbleText,
+    required this.bubbleBorder,
+    required this.divider,
+    required this.inputBarBackground,
+    required this.inputBackground,
+    required this.inputText,
+    required this.inputHint,
+    required this.actionButtonBackground,
+    required this.actionButtonForeground,
+    required this.sendButtonBackground,
+    required this.sendButtonForeground,
+    required this.avatarStart,
+    required this.avatarEnd,
+  });
+
+  final Color advisorBubbleBackground;
+  final Color advisorBubbleText;
+  final Color userBubbleBackground;
+  final Color userBubbleText;
+  final Color bubbleBorder;
+  final Color divider;
+  final Color inputBarBackground;
+  final Color inputBackground;
+  final Color inputText;
+  final Color inputHint;
+  final Color actionButtonBackground;
+  final Color actionButtonForeground;
+  final Color sendButtonBackground;
+  final Color sendButtonForeground;
+  final Color avatarStart;
+  final Color avatarEnd;
+
+  factory _AdvisorPalette.of(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return _AdvisorPalette(
+      advisorBubbleBackground: colorScheme.surfaceContainerLow,
+      advisorBubbleText: colorScheme.onSurface,
+      userBubbleBackground: colorScheme.surfaceContainerHighest,
+      userBubbleText: colorScheme.onSurface,
+      bubbleBorder: colorScheme.outlineVariant.withValues(alpha: 0.5),
+      divider: colorScheme.outlineVariant.withValues(alpha: 0.4),
+      inputBarBackground: colorScheme.surface,
+      inputBackground: colorScheme.surfaceContainerHigh,
+      inputText: colorScheme.onSurface,
+      inputHint: colorScheme.onSurfaceVariant,
+      actionButtonBackground: colorScheme.surfaceContainerHigh,
+      actionButtonForeground: colorScheme.onSurfaceVariant,
+      sendButtonBackground: colorScheme.surfaceContainerHighest,
+      sendButtonForeground: colorScheme.onSurface,
+      avatarStart: const Color(0xFF7B6BFF),
+      avatarEnd: const Color(0xFF5B77FF),
+    );
+  }
 }

@@ -31,3 +31,10 @@
 - [ ] Personality selector mode switch verified (healer/coach/strategist)
 - [ ] Memory summary only syncs `sync_allowed` actionable facts
 - [ ] Monthly quality insight trend/focus output verified
+
+## Phase 2.1 Internal Beta Additions
+
+- [x] Avatar play config default version + thresholds verified
+- [x] Avatar config repository compatibility (`v1`) and required-field checks verified
+- [x] Desktop interaction contract fallback (`open_main_window`) verified
+- [x] API avatar config sync summary + compatibility contract verified

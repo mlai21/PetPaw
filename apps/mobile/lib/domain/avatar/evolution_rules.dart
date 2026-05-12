@@ -1,3 +1,5 @@
+import 'package:pet_paw_app/domain/avatar/avatar_play_config.dart';
+
 class EvolutionRules {
   const EvolutionRules({
     required this.streakThreshold,
@@ -8,7 +10,14 @@ class EvolutionRules {
   final int qualityThreshold;
 
   factory EvolutionRules.defaultRules() {
-    return const EvolutionRules(streakThreshold: 7, qualityThreshold: 75);
+    return EvolutionRules.fromConfig(AvatarPlayConfig.defaults());
+  }
+
+  factory EvolutionRules.fromConfig(AvatarPlayConfig config) {
+    return EvolutionRules(
+      streakThreshold: config.evolution.streakThreshold,
+      qualityThreshold: config.evolution.qualityThreshold,
+    );
   }
 
   int nextStage({

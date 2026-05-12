@@ -1,8 +1,41 @@
+import 'package:pet_paw_app/domain/avatar/avatar_play_config.dart';
+
 class QualityWeightedGrowth {
-  static const int _highQualityThreshold = 85;
-  static const int _mediumQualityThreshold = 60;
-  static const int _highQualityBonusExp = 8;
-  static const int _mediumQualityBonusExp = 3;
+  QualityWeightedGrowth()
+      : this._(
+          highQualityThreshold:
+              AvatarPlayConfig.defaults().qualityWeights.highQualityThreshold,
+          mediumQualityThreshold:
+              AvatarPlayConfig.defaults().qualityWeights.mediumQualityThreshold,
+          highQualityBonusExp:
+              AvatarPlayConfig.defaults().qualityWeights.highQualityBonusExp,
+          mediumQualityBonusExp:
+              AvatarPlayConfig.defaults().qualityWeights.mediumQualityBonusExp,
+        );
+
+  QualityWeightedGrowth._({
+    required int highQualityThreshold,
+    required int mediumQualityThreshold,
+    required int highQualityBonusExp,
+    required int mediumQualityBonusExp,
+  })  : _highQualityThreshold = highQualityThreshold,
+        _mediumQualityThreshold = mediumQualityThreshold,
+        _highQualityBonusExp = highQualityBonusExp,
+        _mediumQualityBonusExp = mediumQualityBonusExp;
+
+  factory QualityWeightedGrowth.fromConfig(AvatarPlayConfig config) {
+    return QualityWeightedGrowth._(
+      highQualityThreshold: config.qualityWeights.highQualityThreshold,
+      mediumQualityThreshold: config.qualityWeights.mediumQualityThreshold,
+      highQualityBonusExp: config.qualityWeights.highQualityBonusExp,
+      mediumQualityBonusExp: config.qualityWeights.mediumQualityBonusExp,
+    );
+  }
+
+  final int _highQualityThreshold;
+  final int _mediumQualityThreshold;
+  final int _highQualityBonusExp;
+  final int _mediumQualityBonusExp;
 
   int expGain({required int baseExp, required int qualityScore}) {
     assert(baseExp >= 0);

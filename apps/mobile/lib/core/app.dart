@@ -117,7 +117,7 @@ class _HomeShellState extends State<_HomeShell> {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: Text(_titles[_currentIndex])),
+      appBar: _buildAppBar(context),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final defaultPos = Offset(
@@ -195,6 +195,44 @@ class _HomeShellState extends State<_HomeShell> {
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: '设置'),
         ],
       ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    if (_currentIndex != 2) {
+      return AppBar(title: Text(_titles[_currentIndex]));
+    }
+
+    return AppBar(
+      centerTitle: true,
+      leading: IconButton(
+        icon: const Icon(Icons.menu_rounded),
+        onPressed: () {},
+      ),
+      title: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '我的顾问',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          Text(
+            '随时在线，专为你',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.edit_outlined),
+          onPressed: () {},
+        ),
+      ],
     );
   }
 }
