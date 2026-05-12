@@ -10,9 +10,51 @@ class PetPawApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    final lightScheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF10A37F),
+      brightness: Brightness.light,
+    );
+    final darkScheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF10A37F),
+      brightness: Brightness.dark,
+    );
+
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: _HomeShell(),
+      themeMode: ThemeMode.system,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: lightScheme,
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: lightScheme.onSurface,
+          elevation: 0,
+          centerTitle: false,
+          titleTextStyle: TextStyle(
+            color: lightScheme.onSurface,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: darkScheme,
+        scaffoldBackgroundColor: darkScheme.surface,
+        appBarTheme: AppBarTheme(
+          backgroundColor: darkScheme.surface,
+          foregroundColor: darkScheme.onSurface,
+          elevation: 0,
+          centerTitle: false,
+          titleTextStyle: TextStyle(
+            color: darkScheme.onSurface,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      home: const _HomeShell(),
     );
   }
 }
@@ -131,6 +173,12 @@ class _HomeShellState extends State<_HomeShell> {
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Theme.of(
+          context,
+        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        elevation: 6,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
