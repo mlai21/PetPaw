@@ -14,7 +14,7 @@
 - 当前状态：`master` 已合并 **MVP → Phase 2 系统化 → Phase 2.1（配置/桌面契约/API 契约预留）→ Phase 2.2（移动端 IA + 今日↔顾问上下文）→ 交互细化与 Round 2 参数微调**（PR #4 已 squash merge）。服务端顾问已支持 **阿里云百炼 OpenAI 兼容 Chat Completions**（默认 `qwen3.5-flash`，见 `docs/integrations/alibaba-bailian-openai-compatible.md`）；移动端顾问仍以本地状态机为主，**HTTP 真流式与鉴权**待接。
 - 核心规格（长期对齐）：`docs/superpowers/specs/2026-05-09-private-advisor-design.md`
 - 近期已交付计划索引：`docs/superpowers/plans/2026-05-09-private-advisor-mvp-phase1-plan.md`（一期）→ `2026-05-09-private-advisor-phase2-systemization-plan.md`（Phase 2）→ `2026-05-09-private-advisor-phase2-1-plan.md`（2.1）→ `2026-05-09-mobile-ia-advisor-context-implementation-plan.md`（2.2）→ `2026-05-10-mobile-interaction-polish-implementation-plan.md` / `*-round2-*`（交互）
-- **下一里程碑（进行中规划）**：移动端对接 `services/api` 的 **`/advisor/chat`（百炼）** 与鉴权；按需引入 **SSE 流式**；注册/登录页与后端账号体系闭环。
+- **下一里程碑（进行中规划）**：移动端对接 `services/api` 的 **`/advisor/chat`（百炼）** 与鉴权；按需引入 **SSE 流式**；注册/登录页与后端账号体系闭环；补齐“注册后分身创建向导（4 候选生成 + 重跑 + 必填命名）”。
 
 ## Task 状态看板（多窗口共用）
 
@@ -35,6 +35,7 @@
 | Task 13 | Phase 2.1 integration regression | DONE | 当前会话 | 2026-05-09 08:30 | 全量回归通过 |
 | Task 14 | LLM API（百炼 OpenAI 兼容 + 可选 OpenAI） | DONE | 当前会话 | 2026-05-12 | 规范见 `docs/integrations/alibaba-bailian-openai-compatible.md` |
 | Task 15 | 注册 / 登录页 + 设置入口导航 | TODO | — | — | 鉴权与 API 后续迭代 |
+| Task 16 | 注册后分身创建向导（手机号后置 + 2 步创建） | DONE | 当前会话 | 2026-05-13 00:58 | 移动端与 API 占位契约已落地并通过回归 |
 
 状态值约定：`TODO` / `IN_PROGRESS` / `BLOCKED` / `DONE`  
 领取任务时先把对应行改为 `IN_PROGRESS` 并填写“负责人窗口”，完成后改为 `DONE`。
@@ -296,3 +297,31 @@
 - 验证: `cd services/api && pnpm test` PASS（6 suites / 14 tests）。
 - 决策: 与官方一致使用环境变量名 `DASHSCOPE_API_KEY`；地域与 Key 绑定由运维通过 `DASHSCOPE_COMPAT_BASE_URL` 显式配置；未配置百炼 Key 时仍可回退 `OPENAI_API_KEY`。
 - 下一步: 移动端 HTTP 客户端对接 `/advisor/chat`；按需增加流式与配额监控。
+
+### [2026-05-12 23:34] [窗口: 当前会话] [任务: 主干发布同步（UI/主题/API env）]
+- 操作: 将当前工作集整体收口并推送到 `master`，包含移动端顾问页视觉重构（顶部样式、对话气泡、底部输入栏结构、亮暗主题统一语义映射）与服务端环境模板/依赖更新；确认 `.env` 不入库，仅提交 `.env.example`。
+- 文件: `apps/mobile/lib/core/app.dart`, `apps/mobile/lib/features/advisor/advisor_chat_page.dart`, `apps/mobile/test/features/advisor/advisor_chat_page_test.dart`, `services/api/.env.example`, `services/api/src/modules/advisor/**`, `services/api/package.json`, `services/api/pnpm-lock.yaml`, `docs/**`, `progress.md`（及同批次已纳入变更文件）
+- 验证: `git push origin master` PASS（`1760cc4..d7b9e51`）；`git check-ignore -v services/api/.env` 命中 `.gitignore`；顾问页相关 widget tests 已在本轮迭代通过。
+- 决策: 为避免泄漏敏感配置，继续保持 `services/api/.env` 本地私有；仓库以 `services/api/.env.example` 提供团队配置基线。
+- 下一步: 若继续发布节奏，建议补一条 `docs/release/` 的版本摘要（变更点 + 升级说明 + 回滚提示）。
+
+### [2026-05-13 00:47] [窗口: 当前会话] [任务: 注册后分身创建需求补充]
+- 操作: 基于最新产品决策补充规格：注册流程固定为“手机号注册后进入分身创建向导”；分身创建定为 2 步（4 候选生成/重跑/选择 + 分身命名必填 + 期望选填）。
+- 文件: `docs/superpowers/specs/2026-05-09-private-advisor-design.md`, `progress.md`
+- 验证: 规格文档已完成结构化补充并通过人工一致性检查（与一期边界、分身白纸原则、声音能力后置保持一致）。
+- 决策: 一期暂不做声音输入，先确保图像生成与命名流程闭环可用。
+- 下一步: 产出针对分身创建向导的 implementation plan（页面、API 契约、状态机、埋点与失败重试）。
+
+### [2026-05-13 00:50] [窗口: 当前会话] [任务: 分身创建执行文档生成]
+- 操作: 按写计划规范产出“注册后分身创建向导”实施计划，覆盖移动端 2 步向导、手机号鉴权 UI、API 契约占位、回归与进展同步。
+- 文件: `docs/superpowers/plans/2026-05-13-avatar-onboarding-implementation-plan.md`, `progress.md`
+- 验证: 计划文档完成自检（spec 覆盖、无占位符、任务拆解含测试与命令）。
+- 决策: 先以契约占位完成闭环，真实图像生成与鉴权持久化放在该计划后续迭代接入。
+- 下一步: 选择执行方式（Subagent-Driven 或 Inline）并将 Task 16 置为 `IN_PROGRESS` 开始编码。
+
+### [2026-05-13 00:58] [窗口: 当前会话] [任务: Task 16 分身创建向导实现完成]
+- 操作: 按 Subagent-Driven 执行完成手机号验证码 auth UI 替换、分身创建 2 步向导（Step1 4 候选生成/重跑/选择，Step2 命名必填+期望选填）及 API 占位契约（`/auth/phone/verify`、`/avatar/onboarding/generate`）。
+- 文件: `apps/mobile/lib/features/auth/login_page.dart`, `apps/mobile/lib/features/auth/register_page.dart`, `apps/mobile/lib/features/onboarding/avatar_onboarding_models.dart`, `apps/mobile/lib/features/onboarding/avatar_onboarding_repository.dart`, `apps/mobile/lib/features/onboarding/avatar_onboarding_page.dart`, `apps/mobile/test/features/auth/auth_navigation_test.dart`, `apps/mobile/test/features/onboarding/avatar_onboarding_models_test.dart`, `apps/mobile/test/features/onboarding/avatar_onboarding_page_test.dart`, `services/api/src/modules/auth/auth.controller.ts`, `services/api/src/modules/avatar/avatar_onboarding.controller.ts`, `services/api/src/index.ts`, `services/api/test/auth/phone_auth_contract.test.ts`, `services/api/test/avatar/avatar_onboarding_contract.test.ts`, `progress.md`
+- 验证: `cd apps/mobile && flutter test -r compact` PASS；`cd services/api && pnpm test` PASS（8 suites / 16 tests）；`ReadLints`（auth/onboarding/auth-api/avatar-api）无新增错误。
+- 决策: 声音输入与语音克隆保持后置；当前版本先用候选 mock 契约闭环，后续接入真实图像生成服务。
+- 下一步: 衔接真实图像生成服务与上传通道（对象存储 + 任务轮询 + 候选预览地址签名）。

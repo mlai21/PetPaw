@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_paw_app/features/onboarding/avatar_onboarding_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -9,15 +10,13 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
-  final _password = TextEditingController();
-  final _passwordConfirm = TextEditingController();
+  final _phone = TextEditingController();
+  final _code = TextEditingController();
 
   @override
   void dispose() {
-    _email.dispose();
-    _password.dispose();
-    _passwordConfirm.dispose();
+    _phone.dispose();
+    _code.dispose();
     super.dispose();
   }
 
@@ -48,46 +47,35 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 28),
                 TextFormField(
-                  key: const Key('register_email'),
-                  controller: _email,
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
+                  key: const Key('register_phone'),
+                  controller: _phone,
+                  keyboardType: TextInputType.phone,
+                  autofillHints: const [AutofillHints.telephoneNumber],
                   decoration: const InputDecoration(
-                    labelText: '邮箱',
+                    labelText: '手机号',
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return '请输入邮箱';
-                    if (!v.contains('@')) return '邮箱格式不完整';
+                    final value = v?.trim() ?? '';
+                    if (value.isEmpty) return '请输入手机号';
+                    if (!RegExp(r'^\d{11}$').hasMatch(value)) return '请输入 11 位手机号';
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
-                  key: const Key('register_password'),
-                  controller: _password,
-                  obscureText: true,
+                  key: const Key('register_code'),
+                  controller: _code,
+                  keyboardType: TextInputType.number,
+                  autofillHints: const [AutofillHints.oneTimeCode],
                   decoration: const InputDecoration(
-                    labelText: '密码',
+                    labelText: '验证码',
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return '请输入密码';
-                    if (v.length < 6) return '至少 6 位';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  key: const Key('register_password_confirm'),
-                  controller: _passwordConfirm,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: '确认密码',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) {
-                    if (v != _password.text) return '两次密码不一致';
+                    final value = v?.trim() ?? '';
+                    if (value.isEmpty) return '请输入验证码';
+                    if (!RegExp(r'^\d{4,6}$').hasMatch(value)) return '请输入 4-6 位数字验证码';
                     return null;
                   },
                 ),
@@ -98,9 +86,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     if (!(_formKey.currentState?.validate() ?? false)) {
                       return;
                     }
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('注册接口就绪后即可创建账号（当前为 UI 预览）'),
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const AvatarOnboardingPage(),
                       ),
                     );
                   },

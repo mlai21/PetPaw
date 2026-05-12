@@ -10,13 +10,13 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
-  final _password = TextEditingController();
+  final _phone = TextEditingController();
+  final _code = TextEditingController();
 
   @override
   void dispose() {
-    _email.dispose();
-    _password.dispose();
+    _phone.dispose();
+    _code.dispose();
     super.dispose();
   }
 
@@ -47,33 +47,35 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 28),
                 TextFormField(
-                  key: const Key('login_email'),
-                  controller: _email,
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
+                  key: const Key('login_phone'),
+                  controller: _phone,
+                  keyboardType: TextInputType.phone,
+                  autofillHints: const [AutofillHints.telephoneNumber],
                   decoration: const InputDecoration(
-                    labelText: '邮箱',
+                    labelText: '手机号',
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return '请输入邮箱';
-                    if (!v.contains('@')) return '邮箱格式不完整';
+                    final value = v?.trim() ?? '';
+                    if (value.isEmpty) return '请输入手机号';
+                    if (!RegExp(r'^\d{11}$').hasMatch(value)) return '请输入 11 位手机号';
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
-                  key: const Key('login_password'),
-                  controller: _password,
-                  obscureText: true,
-                  autofillHints: const [AutofillHints.password],
+                  key: const Key('login_code'),
+                  controller: _code,
+                  keyboardType: TextInputType.number,
+                  autofillHints: const [AutofillHints.oneTimeCode],
                   decoration: const InputDecoration(
-                    labelText: '密码',
+                    labelText: '验证码',
                     border: OutlineInputBorder(),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return '请输入密码';
-                    if (v.length < 6) return '至少 6 位';
+                    final value = v?.trim() ?? '';
+                    if (value.isEmpty) return '请输入验证码';
+                    if (!RegExp(r'^\d{4,6}$').hasMatch(value)) return '请输入 4-6 位数字验证码';
                     return null;
                   },
                 ),
