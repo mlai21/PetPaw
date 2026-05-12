@@ -265,4 +265,43 @@ void main() {
       expect(find.text(reviewChip), findsOneWidget);
     }
   });
+
+  testWidgets('advisor bubble follows dark theme color tokens', (tester) async {
+    final darkTheme = ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF10A37F),
+        brightness: Brightness.dark,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF10A37F),
+            brightness: Brightness.light,
+          ),
+        ),
+        darkTheme: darkTheme,
+        themeMode: ThemeMode.dark,
+        home: const Scaffold(body: AdvisorChatPage()),
+      ),
+    );
+
+    final messageBubbleFinder = find
+        .ancestor(
+          of: find.text('问问你的顾问'),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Container && widget.decoration is BoxDecoration,
+          ),
+        )
+        .first;
+    final bubbleContainer = tester.widget<Container>(messageBubbleFinder);
+    final bubbleDecoration = bubbleContainer.decoration! as BoxDecoration;
+
+    expect(bubbleDecoration.color, darkTheme.colorScheme.surfaceContainerHighest);
+    expect(bubbleDecoration.color, isNot(Colors.white));
+  });
 }
