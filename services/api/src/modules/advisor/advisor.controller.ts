@@ -8,3 +8,9 @@ advisorRouter.post('/chat', async (req, res) => {
   const output = await advisorService.chat(req.body);
   res.json(output);
 });
+
+advisorRouter.get('/tasks/:queueId/status', (req, res) => {
+  const queueId = req.params.queueId;
+  const output = advisorService.getTaskStatus(queueId);
+  res.json(output);
+});
