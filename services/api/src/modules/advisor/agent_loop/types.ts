@@ -15,7 +15,7 @@ export type ExecutionStep = {
   taskId: string;
   title: string;
   status: 'done' | 'skipped' | 'failed';
-  tool: 'tavily-search' | 'none';
+  tool: 'tavily-search' | 'x-search' | 'bailian-search' | 'none';
   inputSummary: string;
   outputSummary: string;
 };
@@ -23,4 +23,15 @@ export type ExecutionStep = {
 export type ExecutorOutput = {
   steps: ExecutionStep[];
   notes: string[];
+};
+
+export type ResponderOutput = {
+  answer: string;
+  rawText: string;
+  userPayload: string;
+};
+
+export type VerifyOutput = {
+  answer: string;
+  rawText: string;
 };

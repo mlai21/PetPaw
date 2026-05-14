@@ -41,6 +41,7 @@ export async function runPlanner(params: {
   model: string;
   userMessage: string;
   weeklyTrend: string;
+  enableThinking?: boolean;
 }): Promise<PlannerOutput> {
   const userPayload = [
     `用户输入: ${params.userMessage}`,
@@ -53,6 +54,7 @@ export async function runPlanner(params: {
     model: params.model,
     system: plannerSystemPrompt,
     user: userPayload,
+    enableThinking: params.enableThinking,
   });
   try {
     const parsed = JSON.parse(rawText) as {

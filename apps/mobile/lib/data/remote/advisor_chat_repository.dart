@@ -17,6 +17,9 @@ class AdvisorReply {
     required this.llmOk,
     required this.tasks,
     required this.completedTaskIds,
+    required this.webLinks,
+    required this.thinkingSteps,
+    required this.thinkingTotalMs,
   });
 
   final String answer;
@@ -25,6 +28,9 @@ class AdvisorReply {
   final bool llmOk;
   final List<AdvisorTask> tasks;
   final List<String> completedTaskIds;
+  final List<AdvisorWebLink> webLinks;
+  final List<AdvisorThinkingStep> thinkingSteps;
+  final int thinkingTotalMs;
 }
 
 class AdvisorTask {
@@ -35,6 +41,38 @@ class AdvisorTask {
 
   final String id;
   final String title;
+}
+
+class AdvisorWebLink {
+  const AdvisorWebLink({
+    required this.taskId,
+    required this.tool,
+    required this.title,
+    required this.url,
+  });
+
+  final String taskId;
+  final String tool;
+  final String title;
+  final String url;
+}
+
+class AdvisorThinkingStep {
+  const AdvisorThinkingStep({
+    required this.stage,
+    required this.title,
+    required this.durationMs,
+    required this.model,
+    required this.skipped,
+    this.reason,
+  });
+
+  final String stage;
+  final String title;
+  final int durationMs;
+  final String model;
+  final bool skipped;
+  final String? reason;
 }
 
 /// 与历史 UI 测试一致的本地假回复（不发起网络请求）。
@@ -56,6 +94,9 @@ class StubAdvisorChatRepository implements AdvisorChatRepository {
       llmOk: false,
       tasks: [],
       completedTaskIds: [],
+      webLinks: [],
+      thinkingSteps: [],
+      thinkingTotalMs: 0,
     );
   }
 
@@ -140,11 +181,17 @@ class HttpAdvisorChatRepository implements AdvisorChatRepository {
         llmOk: false,
         tasks: const [],
         completedTaskIds: const [],
+        webLinks: const [],
+        thinkingSteps: const [],
+        thinkingTotalMs: 0,
       );
     }
     final trace = decoded['trace'];
     final tasks = <AdvisorTask>[];
     final completedTaskIds = <String>[];
+    final webLinks = <AdvisorWebLink>[];
+    final thinkingSteps = <AdvisorThinkingStep>[];
+    var thinkingTotalMs = 0;
     if (trace is Map<String, dynamic>) {
       final rawTasks = trace['tasks'];
       if (rawTasks is List) {
@@ -171,6 +218,67 @@ class HttpAdvisorChatRepository implements AdvisorChatRepository {
           }
         }
       }
+      final rawWebLinks = trace['webLinks'];
+      if (rawWebLinks is List) {
+        for (final item in rawWebLinks) {
+          if (item is Map<String, dynamic> &&
+              item['url'] is String &&
+              item['title'] is String &&
+              item['taskId'] is String &&
+              item['tool'] is String) {
+            webLinks.add(
+              AdvisorWebLink(
+                taskId: item['taskId'] as String,
+                tool: item['tool'] as String,
+                title: item['title'] as String,
+                url: item['url'] as String,
+              ),
+            );
+          }
+        }
+      }
+      final rawTimings = trace['timings'];
+      final rawIntent = trace['intent'];
+      if (rawTimings is Map<String, dynamic>) {
+        thinkingTotalMs = rawTimings['totalMs'] is num
+            ? (rawTimings['totalMs'] as num).toInt()
+            : 0;
+        const stageTitles = {
+          'intent': '意图识别',
+          'planner': '任务规划',
+          'executor': '检索执行',
+          'responder': '回答生成',
+          'verify': '质量校验',
+        };
+        for (final stage in stageTitles.keys) {
+          final stageTiming = rawTimings[stage];
+          if (stageTiming is! Map<String, dynamic>) {
+            continue;
+          }
+          String? reason;
+          if (stage == 'intent' &&
+              rawIntent is Map<String, dynamic> &&
+              rawIntent['reason'] is String) {
+            reason = rawIntent['reason'] as String;
+          } else if (stageTiming['reason'] is String) {
+            reason = stageTiming['reason'] as String;
+          }
+          thinkingSteps.add(
+            AdvisorThinkingStep(
+              stage: stage,
+              title: stageTitles[stage] ?? stage,
+              durationMs: stageTiming['durationMs'] is num
+                  ? (stageTiming['durationMs'] as num).toInt()
+                  : 0,
+              model: stageTiming['model'] is String
+                  ? stageTiming['model'] as String
+                  : 'n/a',
+              skipped: stageTiming['skipped'] == true,
+              reason: reason?.trim().isEmpty == true ? null : reason,
+            ),
+          );
+        }
+      }
     }
     return AdvisorReply(
       answer: trimmed,
@@ -179,6 +287,9 @@ class HttpAdvisorChatRepository implements AdvisorChatRepository {
       llmOk: meta['llmOk'] == true,
       tasks: tasks,
       completedTaskIds: completedTaskIds,
+      webLinks: webLinks,
+      thinkingSteps: thinkingSteps,
+      thinkingTotalMs: thinkingTotalMs,
     );
   }
 

@@ -3,6 +3,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pet_paw_app/data/remote/advisor_chat_repository.dart';
 import 'package:pet_paw_app/features/advisor/advisor_chat_page.dart';
 
+class _FakeAdvisorChatRepository implements AdvisorChatRepository {
+  const _FakeAdvisorChatRepository(this.reply);
+
+  final AdvisorReply reply;
+
+  @override
+  Future<AdvisorReply> askAdvisor(
+    String message, {
+    bool allowSearch = false,
+  }) async {
+    return reply;
+  }
+
+  @override
+  void dispose() {}
+}
+
 void main() {
   testWidgets('advisor page renders chat shell controls', (
     tester,
@@ -43,15 +60,15 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
     await tester.pump();
 
-    expect(find.text('规划中...'), findsOneWidget);
+    expect(find.text('思考中...'), findsOneWidget);
     expect(
       find.text('收到，我来帮你拆解。先从最小行动开始：把任务缩小到10分钟内可完成的一步。'),
       findsNothing,
     );
 
-    // 前 220ms 展示“规划中...”阶段。
+    // 前 220ms 展示“思考中...”阶段。
     await tester.pump(const Duration(milliseconds: 220));
-    final planningVisible = find.text('规划中...').evaluate().isNotEmpty;
+    final planningVisible = find.text('思考中...').evaluate().isNotEmpty;
     final composingVisible = find.text('整理回复中...').evaluate().isNotEmpty;
     expect(planningVisible || composingVisible, isTrue);
 
@@ -92,7 +109,7 @@ void main() {
 
     expect(find.text('第一个问题'), findsOneWidget);
     expect(find.text('第二个问题'), findsOneWidget);
-    expect(find.text('规划中...'), findsOneWidget);
+    expect(find.text('思考中...'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 1600));
     await tester.pumpAndSettle();
@@ -102,7 +119,7 @@ void main() {
       find.text('收到，我来帮你拆解。先从最小行动开始：把任务缩小到10分钟内可完成的一步。'),
       findsOneWidget,
     );
-    expect(find.text('规划中...'), findsNothing);
+    expect(find.text('思考中...'), findsNothing);
 
     // 清空剩余流式计时器，避免测试结束时残留 pending timer。
     await tester.pump(const Duration(milliseconds: 200));
@@ -177,5 +194,46 @@ void main() {
 
     expect(bubbleDecoration.color, darkTheme.colorScheme.surfaceContainerLow);
     expect(bubbleDecoration.color, isNot(Colors.white));
+  });
+
+  testWidgets('advisor message renders web links from backend reply', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: AdvisorChatPage(
+            advisorRepository: _FakeAdvisorChatRepository(
+              AdvisorReply(
+                answer: '北京今日天气晴，最高约28℃，最低约19℃。',
+                model: 'qwen3.5-flash',
+                route: 'dashscope',
+                llmOk: true,
+                tasks: [],
+                completedTaskIds: [],
+                webLinks: [
+                  AdvisorWebLink(
+                    taskId: 'task-1',
+                    tool: 'bailian-search',
+                    title: '中国天气网北京预报',
+                    url: 'https://www.weather.com.cn/beijing/forecast.html',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), '今天北京天气气温多少');
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2600));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('参考网页链接：'), findsOneWidget);
+    expect(
+      find.textContaining('https://www.weather.com.cn/beijing/forecast.html'),
+      findsOneWidget,
+    );
   });
 }

@@ -22,8 +22,8 @@ class AdvisorChatPage extends StatefulWidget {
 }
 
 class _AdvisorChatPageState extends State<AdvisorChatPage> {
-  static const String _skeletonReply = '规划中...';
-  static const Duration _requestTimeout = Duration(seconds: 45);
+  static const String _skeletonReply = '思考中...';
+  static const Duration _requestTimeout = Duration(minutes: 5);
   static const Duration _skeletonHold = Duration(milliseconds: 220);
   static const Duration _streamTickFast = Duration(milliseconds: 18);
   static const Duration _streamTickNormal = Duration(milliseconds: 24);
@@ -82,6 +82,9 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
                 message.role,
                 message.text,
                 message.todos,
+                message.webLinks,
+                message.thinkingSteps,
+                message.thinkingTotalMs,
               );
             },
           ),
@@ -148,9 +151,16 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
     String role,
     String text,
     List<_TodoProgressItem>? todos,
+    List<AdvisorWebLink>? webLinks,
+    List<AdvisorThinkingStep>? thinkingSteps,
+    int thinkingTotalMs,
   ) {
     final isUser = role == 'user';
     final palette = _AdvisorPalette.of(context);
+    final computedThinkingTotalMs = (thinkingSteps ?? const <AdvisorThinkingStep>[])
+        .fold<int>(0, (sum, step) => sum + step.durationMs);
+    final displayThinkingTotalMs =
+        thinkingTotalMs > 0 ? thinkingTotalMs : computedThinkingTotalMs;
 
     final bubble = Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -207,6 +217,71 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
                   ],
                 ),
               ),
+          ],
+          if (webLinks != null && webLinks.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              '参考网页链接：',
+              style: TextStyle(
+                color: palette.advisorBubbleText.withValues(alpha: 0.9),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (final link in webLinks)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '• ${link.title}\n${link.url}',
+                  style: TextStyle(
+                    color: palette.advisorBubbleText.withValues(alpha: 0.88),
+                    fontSize: 13,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+          ],
+          if (thinkingSteps != null && thinkingSteps.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Theme(
+              data: Theme.of(context).copyWith(
+                dividerColor: Colors.transparent,
+              ),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                collapsedIconColor:
+                    palette.advisorBubbleText.withValues(alpha: 0.7),
+                iconColor: palette.advisorBubbleText.withValues(alpha: 0.85),
+                title: Text(
+                  '思考过程（总耗时 ${displayThinkingTotalMs}ms）',
+                  style: TextStyle(
+                    color: palette.advisorBubbleText.withValues(alpha: 0.9),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                children: [
+                  const SizedBox(height: 4),
+                  for (final step in thinkingSteps)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        '• ${step.title} · ${step.durationMs}ms'
+                        '${step.skipped ? '（跳过）' : ''}'
+                        '\n模型：${step.model}'
+                        '${(step.reason != null && step.reason!.isNotEmpty) ? '\n原因：${step.reason}' : ''}',
+                        style: TextStyle(
+                          color: palette.advisorBubbleText.withValues(alpha: 0.86),
+                          fontSize: 12.5,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ],
         ],
       ),
@@ -271,7 +346,7 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
       reply = await _advisorRepository
           .askAdvisor(
             text,
-            allowSearch: false,
+            allowSearch: true,
           )
           .timeout(_requestTimeout);
     } catch (_) {
@@ -292,7 +367,7 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
         reply = await _advisorRepository
             .askAdvisor(
               text,
-              allowSearch: false,
+              allowSearch: true,
             )
             .timeout(_requestTimeout);
       } on AdvisorChatHttpException catch (e) {
@@ -394,6 +469,7 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
     }
 
     final fullReply = reply.answer;
+    final replyWebLinks = reply.webLinks;
     final targetIndex = _messages.length - 1;
     final streamStart = fullReply.startsWith(_skeletonReply)
         ? _skeletonReply.length + 1
@@ -412,6 +488,9 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
         _messages[targetIndex] = _ChatMessage(
           role: 'advisor',
           text: fullReply.substring(0, end),
+          webLinks: replyWebLinks,
+          thinkingSteps: reply.thinkingSteps,
+          thinkingTotalMs: reply.thinkingTotalMs,
         );
       });
     }
@@ -430,11 +509,17 @@ class _ChatMessage {
     required this.role,
     required this.text,
     this.todos,
+    this.webLinks,
+    this.thinkingSteps,
+    this.thinkingTotalMs = 0,
   });
 
   final String role;
   final String text;
   final List<_TodoProgressItem>? todos;
+  final List<AdvisorWebLink>? webLinks;
+  final List<AdvisorThinkingStep>? thinkingSteps;
+  final int thinkingTotalMs;
 }
 
 class _TodoProgressItem {

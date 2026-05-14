@@ -325,3 +325,17 @@
 - 验证: `cd apps/mobile && flutter test -r compact` PASS；`cd services/api && pnpm test` PASS（8 suites / 16 tests）；`ReadLints`（auth/onboarding/auth-api/avatar-api）无新增错误。
 - 决策: 声音输入与语音克隆保持后置；当前版本先用候选 mock 契约闭环，后续接入真实图像生成服务。
 - 下一步: 衔接真实图像生成服务与上传通道（对象存储 + 任务轮询 + 候选预览地址签名）。
+
+### [2026-05-14 09:32] [窗口: 当前会话] [任务: agentloop 结构梳理文档化]
+- 操作: 完成 `advisor` 当前 agentloop 的端到端结构梳理，沉淀为独立 PRD 文档，覆盖入口分流、Intent/Planner/Executor/Responder/Verify 链路、搜索工具回退顺序、强制搜索规则、关键日志观测点与高风险位。
+- 文件: `prd.md`, `progress.md`
+- 验证: 对照代码文件逐一核验（`advisor.service.ts`、`agent_loop/*.ts`、`chat_completions.ts`、相关测试）后完成文档落盘；本次为文档更新，无需运行编译/测试命令。
+- 决策: 将“问题定位入口”集中到 `prd.md`，后续排障优先依据日志点位（`[advisor][stage_timing]`、`[advisor][final_summary_input]`、`[advisor][verify_output]`）判断卡点，再决定改动层级。
+- 下一步: 如需进入修复阶段，先按 `prd.md` 的高风险点做最小改动方案评估（查询粒度、强制搜索策略、verify 开关与耗时阈值）。
+
+### [2026-05-14 09:44] [窗口: 当前会话] [任务: agentloop 排障手册拆分]
+- 操作: 按“拆”指令将 `prd.md` 从结构描述升级为“问题定位手册版”，新增按现象拆解的排障章节（未用搜索结果、误入重链路、耗时高、多任务检索错位、needSearch 漏标）以及统一排障顺序。
+- 文件: `prd.md`, `progress.md`
+- 验证: 基于现有代码与日志点位定义进行文档一致性检查（stage_timing/final_summary_input/verify_output/search_quality_fallback）；本次仅文档改动，无需执行测试命令。
+- 决策: 后续定位问题优先按“日志定位 -> 环境开关验证 -> 最小代码改动”三步执行，避免直接大改引入新变量。
+- 下一步: 你确认后，我可以直接按手册第 1 条开始做“最小实验”（先关 verify + 缩短搜索超时）帮你把当前卡点快速压缩出来。
