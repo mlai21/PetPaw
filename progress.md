@@ -36,6 +36,7 @@
 | Task 14 | LLM API（百炼 OpenAI 兼容 + 可选 OpenAI） | DONE | 当前会话 | 2026-05-12 | 规范见 `docs/integrations/alibaba-bailian-openai-compatible.md` |
 | Task 15 | 注册 / 登录页 + 设置入口导航 | TODO | — | — | 鉴权与 API 后续迭代 |
 | Task 16 | 注册后分身创建向导（手机号后置 + 2 步创建） | DONE | 当前会话 | 2026-05-13 00:58 | 移动端与 API 占位契约已落地并通过回归 |
+| Task 17 | Self-evolving advisor agent 架构（L1+L2+L3 + D 自适应路由） | IN_PROGRESS | 当前会话 | 2026-05-23 09:10 | Spec + E.1/E.2/E.3 三个 plan 全部落地（共 44 个 TDD task），待启动实现 |
 
 状态值约定：`TODO` / `IN_PROGRESS` / `BLOCKED` / `DONE`  
 领取任务时先把对应行改为 `IN_PROGRESS` 并填写“负责人窗口”，完成后改为 `DONE`。
@@ -339,3 +340,35 @@
 - 验证: 基于现有代码与日志点位定义进行文档一致性检查（stage_timing/final_summary_input/verify_output/search_quality_fallback）；本次仅文档改动，无需执行测试命令。
 - 决策: 后续定位问题优先按“日志定位 -> 环境开关验证 -> 最小代码改动”三步执行，避免直接大改引入新变量。
 - 下一步: 你确认后，我可以直接按手册第 1 条开始做“最小实验”（先关 verify + 缩短搜索超时）帮你把当前卡点快速压缩出来。
+
+### [2026-05-23 09:10] [窗口: 当前会话] [任务: Task 17 - Self-evolving Agent 三个 Phase plan 全部落地]
+- 操作: 按 writing-plans skill 流程串行产出 Phase E.1 / E.2 / E.3 三个 implementation plan，覆盖 spec §4-§11 全部章节；每个 plan 含完整 TDD 任务（编号 + 文件路径 + 失败测试 + 实现代码 + 验证命令 + commit message + 自检），E.1 13 任务 / E.2 17 任务 / E.3 14 任务，合计 44 个可执行 task。
+- 文件: `docs/superpowers/plans/2026-05-23-self-evolving-advisor-e1-plan.md`, `docs/superpowers/plans/2026-05-23-self-evolving-advisor-e2-plan.md`, `docs/superpowers/plans/2026-05-23-self-evolving-advisor-e3-plan.md`, `progress.md`
+- 验证: 三个 plan 各自完成自检（spec 覆盖度 / 占位符扫描 / 类型一致性）；交叉验证 E.2/E.3 引用的 E.1 接口（AgentResult / SchedulerInput / RouterPolicy / state machine 枚举）签名一致。本次为文档产出，无代码改动。
+- 决策:
+  1. 现有 `agent_loop/types.ts` 的 AdvisorCheckpoint / AgentLoopEvent 等基础类型在 E.1 plan 中复用并扩展（不重写），避免与 stage A 已有伏笔冲突。
+  2. L3 后台执行严守隐私边界：worker 不持有用户原文，采用"占位 + mobile 重发"模式（spec §5.5 强约束推导）。
+  3. SSE / 系统 Push / Postgres 切换 / V2/V7/V9 等能力按 spec §6.9 + §12.2 显式延后，不进 E.1/E.2/E.3 任一 plan。
+- 下一步: 等用户选择执行方式（子代理驱动 / 内联执行 / 暂存等审阅 / 单独收口 spec+plan 提交），按选择启动 Phase E.1 第一个 task。
+
+### [2026-05-19 01:35] [窗口: 当前会话] [任务: Task 17 - Self-evolving Agent 设计 spec 落地]
+- 操作: 完成 brainstorming 全流程并产出 design spec，覆盖 13 个 section（总览/术语/架构/L1 状态机/L2 SessionStore/D 路由器/L3 后台执行/可观测性/测试策略/环境开关/里程碑/风险/文件索引）。完成 spec self-review 修复 3 项 ambiguity（keyword_category 多值归属、V5 query 粒度冷启动、关键词分类配置位置）。
+- 文件: `docs/superpowers/specs/2026-05-19-self-evolving-advisor-agent-design.md`, `progress.md`
+- 验证: spec self-review 完成（placeholder/internal-consistency/scope/ambiguity 四项扫描通过）。本次为文档产出，无代码改动，无测试运行。
+- 决策:
+  1. 10 项核心架构决策全部锁定（详见上一条记录的决策列表）。
+  2. Spec 严格遵守"渐进迁移 + 三级降级链 + 零回归闸门"原则，现有 advisor 业务规则全部保留。
+  3. 隐私边界明确为"敏感本地、脱敏 trace 服务端"的 Hybrid 模式，与 `sync.policy.ts` 已有的 `local_only/sync_allowed` 二级隐私分类对齐。
+  4. Implementation plan 按阶段拆分为 E.1/E.2/E.3 三个独立 plan，由后续 writing-plans skill 分别产出。
+- 下一步: 等用户审阅 spec；用户批准后立即按 brainstorming skill 的 terminal state 进入 writing-plans，先产出 Phase E.1 implementation plan。
+
+### [2026-05-18 23:18] [窗口: 当前会话] [任务: Self-evolving Agent 架构方向收敛 round 1]
+- 操作: 围绕“self-evolving”澄清优化方向。给出 7 个候选方向（A 经验记忆/反思、B Prompt+Pipeline 自动优化、C 工具技能自生长、D 路由模型自适应、E 运行时演化为持续 loop、F 多角色协作、G 先看综述再选），用户确认本轮 **必做 E**、**纳入 D**，其余 A/B/C/F 先备选不做。
+- 文件: `progress.md`
+- 验证: 仅方向确认，无代码/测试改动。
+- 决策:
+  1. **E（必做）** = 把当前 `intent → planner → executor → responder → verify` 的“一次性请求级流水线”升级为带状态机、可恢复（checkpoint）、可多轮、可后台执行的运行时 loop（对应 `prd.md` 第 232 行起的 stage A/B/C/D 重构启发）。
+  2. **D（纳入本轮）** = 让 intent gate / planner 的路由策略具备“自适应”能力（基于历史信号自动收紧/放宽走重链路与选模型 tier 的阈值），与 E 的可观测/可恢复底座共生。
+  3. **A/B/C/F 备选** = A 经验记忆与 B Prompt 自动优化天然依赖 E 提供的统一 trace/事件流，等 E 落地后再增量挂入；C 与 F 与当前一期顾问场景需求弱相关，暂不进。
+  4. 当前未提交的本地改动（mobile 多候选 baseURL + Markdown 渲染 + API 临时 agentDebugLog）与本任务正交，应在进入 self-evolving 设计前**单独收口**，避免污染演化设计基线。
+- 下一步: 继续 brainstorming 下一个澄清问题（演化反馈信号来源 & 演化的更新粒度——在线 vs 离线 vs 灰度），然后再产出 design spec。
