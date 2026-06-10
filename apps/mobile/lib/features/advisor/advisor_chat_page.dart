@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:pet_paw_app/data/remote/advisor_chat_repository.dart';
 
 class AdvisorChatPage extends StatefulWidget {
@@ -28,6 +29,10 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
   static const Duration _streamTickFast = Duration(milliseconds: 18);
   static const Duration _streamTickNormal = Duration(milliseconds: 24);
   static const int _fastTickChars = 12;
+  static final RegExp _referenceWebLinksHeaderPattern = RegExp(
+    r'(^|\n)\s*参考网页链接[：:]',
+    multiLine: true,
+  );
 
   final TextEditingController _controller = TextEditingController();
   late final AdvisorChatRepository _advisorRepository;
@@ -40,7 +45,7 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
     super.initState();
     _advisorRepository =
         widget.advisorRepository ?? HttpAdvisorChatRepository.fromEnvironment();
-    _messages = [_ChatMessage(role: 'advisor', text: '问问你的顾问')];
+    _messages = [const _ChatMessage(role: 'advisor', text: '问问你的顾问')];
     if (widget.fromTodayContext != null) {
       _messages.add(
         const _ChatMessage(
@@ -157,10 +162,14 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
   ) {
     final isUser = role == 'user';
     final palette = _AdvisorPalette.of(context);
-    final computedThinkingTotalMs = (thinkingSteps ?? const <AdvisorThinkingStep>[])
-        .fold<int>(0, (sum, step) => sum + step.durationMs);
+    final computedThinkingTotalMs =
+        (thinkingSteps ?? const <AdvisorThinkingStep>[])
+            .fold<int>(0, (sum, step) => sum + step.durationMs);
     final displayThinkingTotalMs =
         thinkingTotalMs > 0 ? thinkingTotalMs : computedThinkingTotalMs;
+    final normalizedText = !isUser
+        ? _normalizeAdvisorText(text, webLinks)
+        : text;
 
     final bubble = Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -178,14 +187,39 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            text,
-            style: TextStyle(
-              color: isUser ? palette.userBubbleText : palette.advisorBubbleText,
-              fontSize: 16,
-              height: 1.45,
+          if (!isUser)
+            MarkdownBody(
+              data: normalizedText,
+              selectable: true,
+              styleSheet: MarkdownStyleSheet.fromTheme(
+                Theme.of(context),
+              ).copyWith(
+                p: TextStyle(
+                  color: palette.advisorBubbleText,
+                  fontSize: 16,
+                  height: 1.45,
+                ),
+                listBullet: TextStyle(
+                  color: palette.advisorBubbleText,
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+                a: TextStyle(
+                  color: palette.avatarEnd,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            )
+          else
+            Text(
+              normalizedText,
+              style: TextStyle(
+                color:
+                    isUser ? palette.userBubbleText : palette.advisorBubbleText,
+                fontSize: 16,
+                height: 1.45,
+              ),
             ),
-          ),
           if (todos != null && todos.isNotEmpty) ...[
             const SizedBox(height: 10),
             for (final todo in todos)
@@ -273,7 +307,8 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
                         '\n模型：${step.model}'
                         '${(step.reason != null && step.reason!.isNotEmpty) ? '\n原因：${step.reason}' : ''}',
                         style: TextStyle(
-                          color: palette.advisorBubbleText.withValues(alpha: 0.86),
+                          color:
+                              palette.advisorBubbleText.withValues(alpha: 0.86),
                           fontSize: 12.5,
                           height: 1.35,
                         ),
@@ -317,6 +352,17 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
     );
   }
 
+  String _normalizeAdvisorText(String text, List<AdvisorWebLink>? webLinks) {
+    var normalized = text;
+    if (webLinks != null && webLinks.isNotEmpty) {
+      final match = _referenceWebLinksHeaderPattern.firstMatch(normalized);
+      if (match != null) {
+        normalized = normalized.substring(0, match.start);
+      }
+    }
+    return normalized.trimRight();
+  }
+
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) {
@@ -349,7 +395,7 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
             allowSearch: true,
           )
           .timeout(_requestTimeout);
-    } catch (_) {
+    } catch (error) {
       if (!mounted || sessionId != _streamSessionId) {
         return;
       }
@@ -394,7 +440,7 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
           _isStreaming = false;
         });
         return;
-      } catch (_) {
+      } catch (error) {
         if (!mounted || sessionId != _streamSessionId) {
           return;
         }
@@ -471,12 +517,12 @@ class _AdvisorChatPageState extends State<AdvisorChatPage> {
     final fullReply = reply.answer;
     final replyWebLinks = reply.webLinks;
     final targetIndex = _messages.length - 1;
-    final streamStart = fullReply.startsWith(_skeletonReply)
-        ? _skeletonReply.length + 1
-        : 1;
+    final streamStart =
+        fullReply.startsWith(_skeletonReply) ? _skeletonReply.length + 1 : 1;
     for (var end = streamStart; end <= fullReply.length; end++) {
-      final step =
-          fullReply.startsWith(_skeletonReply) ? end - _skeletonReply.length : end;
+      final step = fullReply.startsWith(_skeletonReply)
+          ? end - _skeletonReply.length
+          : end;
       await Future<void>.delayed(
         step <= _fastTickChars ? _streamTickFast : _streamTickNormal,
       );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pet_paw_app/data/remote/advisor_chat_repository.dart';
 import 'package:pet_paw_app/features/advisor/advisor_chat_page.dart';
@@ -28,7 +29,7 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: AdvisorChatPage(
-            advisorRepository: const StubAdvisorChatRepository(),
+            advisorRepository: StubAdvisorChatRepository(),
           ),
         ),
       ),
@@ -50,7 +51,7 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: AdvisorChatPage(
-            advisorRepository: const StubAdvisorChatRepository(),
+            advisorRepository: StubAdvisorChatRepository(),
           ),
         ),
       ),
@@ -91,7 +92,7 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: AdvisorChatPage(
-            advisorRepository: const StubAdvisorChatRepository(),
+            advisorRepository: StubAdvisorChatRepository(),
           ),
         ),
       ),
@@ -174,7 +175,7 @@ void main() {
         themeMode: ThemeMode.dark,
         home: const Scaffold(
           body: AdvisorChatPage(
-            advisorRepository: const StubAdvisorChatRepository(),
+            advisorRepository: StubAdvisorChatRepository(),
           ),
         ),
       ),
@@ -217,6 +218,8 @@ void main() {
                     url: 'https://www.weather.com.cn/beijing/forecast.html',
                   ),
                 ],
+                thinkingSteps: [],
+                thinkingTotalMs: 0,
               ),
             ),
           ),
@@ -235,5 +238,58 @@ void main() {
       find.textContaining('https://www.weather.com.cn/beijing/forecast.html'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('advisor message renders markdown and removes duplicated web links section', (
+    tester,
+  ) async {
+    const link = 'https://example.com/a';
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: AdvisorChatPage(
+            advisorRepository: _FakeAdvisorChatRepository(
+              AdvisorReply(
+                answer: '''
+**结论**：先做 10 分钟版本。
+
+- 第一步：打开任务清单
+- 第二步：执行最小动作
+
+参考网页链接：
+- 示例链接: https://example.com/a
+''',
+                model: 'qwen3.5-flash',
+                route: 'dashscope',
+                llmOk: true,
+                tasks: [],
+                completedTaskIds: [],
+                webLinks: [
+                  AdvisorWebLink(
+                    taskId: 'task-1',
+                    tool: 'bailian-search',
+                    title: '示例链接',
+                    url: link,
+                  ),
+                ],
+                thinkingSteps: [],
+                thinkingTotalMs: 0,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), '给我一个执行建议');
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2800));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MarkdownBody), findsWidgets);
+    expect(find.textContaining('结论', findRichText: true), findsOneWidget);
+    expect(find.textContaining('参考网页链接：'), findsOneWidget);
+    expect(find.textContaining(link), findsOneWidget);
   });
 }
