@@ -54,6 +54,15 @@ export function createSqliteSessionStore(params: {
     INSERT INTO advisor_policies(version, created_at, scope, conditions_json, actions_json, rollout_pct)
     VALUES (@version, @createdAt, @scope, @conditionsJson, @actionsJson, @rolloutPct)
   `);
+  const trainingRuntimesStmt = db.prepare(`
+    SELECT run_id, session_id, started_at, ended_at, terminal_state, total_turns, total_tasks, message_length_bucket, policy_version
+    FROM advisor_runtimes WHERE started_at >= ? ORDER BY started_at
+  `);
+  const trainingTasksStmt = db.prepare(`
+    SELECT t.* FROM advisor_tasks t
+    JOIN advisor_runtimes r ON t.run_id = r.run_id
+    WHERE r.started_at >= ? ORDER BY t.run_id, t.task_index
+  `);
   const pruneRuntimesStmt = db.prepare(`DELETE FROM advisor_runtimes WHERE started_at < ?`);
   const pruneTasksStmt = db.prepare(
     `DELETE FROM advisor_tasks WHERE run_id NOT IN (SELECT run_id FROM advisor_runtimes)`,
@@ -152,6 +161,34 @@ export function createSqliteSessionStore(params: {
     },
     async writePolicy(row) {
       writePolicyStmt.run(row);
+    },
+    async trainingData(sinceMs) {
+      const runtimeRows = trainingRuntimesStmt.all(sinceMs) as Array<Record<string, unknown>>;
+      const taskRows = trainingTasksStmt.all(sinceMs) as Array<Record<string, unknown>>;
+      const runtimes: RuntimeRow[] = runtimeRows.map((r) => ({
+        runId: r.run_id as string,
+        sessionId: r.session_id as string,
+        startedAtMs: r.started_at as number,
+        endedAtMs: r.ended_at as number,
+        terminalState: r.terminal_state as RuntimeRow['terminalState'],
+        totalTurns: r.total_turns as number,
+        totalTasks: r.total_tasks as number,
+        messageLengthBucket: r.message_length_bucket as RuntimeRow['messageLengthBucket'],
+        policyVersion: r.policy_version as string,
+      }));
+      const tasks: TaskRow[] = taskRows.map((r) => ({
+        taskId: r.task_id as string,
+        runId: r.run_id as string,
+        taskIndex: r.task_index as number,
+        terminalState: r.terminal_state as TaskRow['terminalState'],
+        needSearch: (r.need_search as number) === 1,
+        toolUsed: (r.tool_used as TaskRow['toolUsed']) ?? undefined,
+        toolResult: (r.tool_result as TaskRow['toolResult']) ?? undefined,
+        durationMs: r.duration_ms as number,
+        retryCount: r.retry_count as number,
+        keywordCategory: (r.keyword_category as string | null) ?? null,
+      }));
+      return { runtimes, tasks };
     },
     async pruneOldRecords() {
       const cutoff = Date.now() - retentionDays * 86400000;

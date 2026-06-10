@@ -59,6 +59,8 @@ export interface SessionStore {
   activePolicies(scope: string): Promise<PolicyRow[]>;
   writePolicy(row: PolicyRow): Promise<void>;
   pruneOldRecords(): Promise<void>;
+  /** D-Learner 训练取数：返回 startedAt >= sinceMs 的 runtime 及其关联 task。 */
+  trainingData(sinceMs: number): Promise<{ runtimes: RuntimeRow[]; tasks: TaskRow[] }>;
   close(): void;
 }
 

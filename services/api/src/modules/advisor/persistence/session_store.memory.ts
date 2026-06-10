@@ -75,6 +75,14 @@ export function createMemorySessionStore(params: { retentionDays?: number } = {}
     async writePolicy(row) {
       policies.push({ ...row });
     },
+    async trainingData(sinceMs) {
+      const selectedRuntimes = runtimes.filter((r) => r.startedAtMs >= sinceMs);
+      const runIds = new Set(selectedRuntimes.map((r) => r.runId));
+      return {
+        runtimes: selectedRuntimes.map((r) => ({ ...r })),
+        tasks: tasks.filter((t) => runIds.has(t.runId)).map((t) => ({ ...t })),
+      };
+    },
     async pruneOldRecords() {
       const cutoff = Date.now() - retentionDays * 86400000;
       for (let i = runtimes.length - 1; i >= 0; i--) {

@@ -10,6 +10,8 @@ import { avatarOnboardingRouter } from './modules/avatar/avatar_onboarding.contr
 import { reviewRouter } from './modules/review/monthly_review.controller';
 import { createSessionStoreFromEnv } from './modules/advisor/persistence/session_store.factory';
 import type { SessionStore } from './modules/advisor/persistence/session_store.types';
+import { scheduleDLearner } from './modules/advisor/learner/d_learner.cron';
+import { readRuntimeEnv } from './modules/advisor/runtime/env';
 
 // 全局 SessionStore 单例（E.2 起）：脱敏 trace 持久化层。初始化失败时降级为 null，不影响主链路。
 export const sessionStore: SessionStore | null = (() => {
@@ -27,6 +29,11 @@ export const sessionStore: SessionStore | null = (() => {
     return null;
   }
 })();
+
+// 启动离线 D-Learner cron（测试环境不启动定时器）。
+if (process.env.NODE_ENV !== 'test' && sessionStore) {
+  scheduleDLearner(sessionStore, readRuntimeEnv().dLearnerCron);
+}
 
 export const app = express();
 
