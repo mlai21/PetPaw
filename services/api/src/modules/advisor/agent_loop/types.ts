@@ -26,7 +26,18 @@ export type AgentLoopEventName =
   | 'planner_done'
   | 'executor_start'
   | 'executor_done'
-  | 'loop_end';
+  | 'loop_end'
+  // === E.1 新增 ===
+  | 'runtime_start'
+  | 'turn_start'
+  | 'turn_complete'
+  | 'task_start'
+  | 'task_done'
+  | 'task_failed'
+  | 'task_skipped'
+  | 'task_retried'
+  | 'router_decision'
+  | 'runtime_end';
 
 export type AgentLoopEvent = {
   runId: string;
