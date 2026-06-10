@@ -3,7 +3,10 @@ import type { KeywordCategory } from './keyword_categories';
 export type DecisionPoint =
   | 'routeIntent'
   | 'setSearchTimeout'
-  | 'setMaxTurns';
+  | 'setMaxTurns'
+  | 'selectToolOrder'
+  | 'shouldSkipVerify'
+  | 'chooseTaskQuery';
 
 export type RuntimeSignal = {
   messageLengthBucket: 'short' | 'medium' | 'long';
