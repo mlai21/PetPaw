@@ -7,6 +7,11 @@ export type RuntimeEnv = {
   routerDEnabled: boolean;
   routerDMode: 'rolling_stats_only' | 'with_policy_table';
   rollingWindowMs: number;
+  sessionStore: 'sqlite' | 'postgres' | 'memory';
+  sessionStorePath: string;
+  traceRetentionDays: number;
+  dLearnerCron: string;
+  dPolicyVersionMode: 'auto' | string;
 };
 
 function parseBool(value: string | undefined, def: boolean): boolean {
@@ -34,6 +39,13 @@ function parseMode(value: string | undefined): RuntimeEnv['routerDMode'] {
   return 'rolling_stats_only';
 }
 
+function parseSessionStore(value: string | undefined): RuntimeEnv['sessionStore'] {
+  const normalized = value?.trim();
+  if (normalized === 'postgres') return 'postgres';
+  if (normalized === 'memory') return 'memory';
+  return 'sqlite';
+}
+
 export function readRuntimeEnv(): RuntimeEnv {
   return {
     runtimeEnabled: parseBool(process.env.ADVISOR_RUNTIME_ENABLED, false),
@@ -54,5 +66,10 @@ export function readRuntimeEnv(): RuntimeEnv {
       30000,
       1800000,
     ),
+    sessionStore: parseSessionStore(process.env.ADVISOR_SESSION_STORE),
+    sessionStorePath: process.env.ADVISOR_SESSION_STORE_PATH?.trim() || './var/advisor.db',
+    traceRetentionDays: parseIntInRange(process.env.ADVISOR_TRACE_RETENTION_DAYS, 90, 7, 365),
+    dLearnerCron: process.env.ADVISOR_D_LEARNER_CRON?.trim() || '0 4 * * *',
+    dPolicyVersionMode: process.env.ADVISOR_D_POLICY_VERSION?.trim() || 'auto',
   };
 }
