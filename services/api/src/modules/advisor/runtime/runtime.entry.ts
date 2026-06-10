@@ -10,6 +10,21 @@ import { createMemoryRouterPolicy } from './router_policy.memory';
 import { runScheduler, type SchedulerResult } from './scheduler';
 import { readRuntimeEnv } from './env';
 import { classifyKeywords } from './keyword_categories';
+import type { SessionStore } from '../persistence/session_store.types';
+
+/**
+ * 解析全局 SessionStore 单例。用 lazy require 而非静态 import，避免与 index.ts 形成
+ * 静态循环依赖（runtime.entry 由 advisor.service 动态加载，此时 index 已完成初始化）。
+ */
+function resolveSessionStore(): SessionStore | undefined {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require('../../../index') as { sessionStore?: SessionStore | null };
+    return mod.sessionStore ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export type RuntimeEntryInput = {
   baseUrl: string;
@@ -25,6 +40,7 @@ export type RuntimeEntryInput = {
   enableThinking: boolean;
   searchToolTimeoutMs: number;
   sessionId?: string;
+  sessionStore?: SessionStore;
 };
 
 export type RuntimeEntryOutput = SchedulerResult & {
@@ -55,6 +71,8 @@ export async function runAdvisorRuntime(input: RuntimeEntryInput): Promise<Runti
   // Verify 启停沿用现有环境变量（最高优先级，作为 human override）
   const verifyEnabled = process.env.ADVISOR_ENABLE_VERIFY?.trim().toLowerCase() !== 'false';
 
+  const sessionStore = input.sessionStore ?? resolveSessionStore();
+
   const result = await runScheduler({
     runId: randomUUID(),
     sessionId: input.sessionId ?? randomUUID(),
@@ -64,6 +82,8 @@ export async function runAdvisorRuntime(input: RuntimeEntryInput): Promise<Runti
     taskMaxRetries: env.taskMaxRetries,
     runtimeTimeoutMs: env.runtimeTimeoutMs,
     router,
+    sessionStore,
+    keywordCategory: classifyKeywords(input.userMessage),
     adapters: {
       async intent() {
         const start = Date.now();
