@@ -37,6 +37,7 @@
 | Task 15 | 注册 / 登录页 + 设置入口导航 | TODO | — | — | 鉴权与 API 后续迭代 |
 | Task 16 | 注册后分身创建向导（手机号后置 + 2 步创建） | DONE | 当前会话 | 2026-05-13 00:58 | 移动端与 API 占位契约已落地并通过回归 |
 | Task 17 | Self-evolving advisor agent 架构（L1+L2+L3 + D 自适应路由） | DONE-E1 / IN_PROGRESS-E2 | 当前会话 | 2026-06-11 01:10 | Phase E.1 已落地并通过闸门（13/13 task），下一步进 E.2 |
+| Task 18 | Magic UI 接入（移动端动效组件库 + Web 落地页） | DONE | 当前会话 | 2026-06-11 01:50 | Flutter 7 组件 + Today/Manifesto 接入；apps/web 落地页 + /admin；移动端 macOS 脚手架补齐 |
 
 状态值约定：`TODO` / `IN_PROGRESS` / `BLOCKED` / `DONE`  
 领取任务时先把对应行改为 `IN_PROGRESS` 并填写“负责人窗口”，完成后改为 `DONE`。
@@ -53,6 +54,22 @@
 ```
 
 ## 进展记录
+
+### [2026-06-11 01:50] [窗口: 当前会话] [任务: Task 18 - Magic UI 接入（移动端 + Web）]
+- 操作:
+  1. **移动端**：基于 `flutter_animate`/`shimmer`/`flutter_staggered_animations` 自实现 7 个 Magic UI 等价组件（`MagicAuroraText`/`MagicShimmerButton`/`MagicNumberTicker`/`MagicMarquee`/`MagicBlurFade`/`MagicBorderBeam`/`MagicTypingText`），放在 `lib/core/widgets/magic/`；新增 Showcase 预览页并在设置页挂隐藏入口；将组件接入真实页面——`TodayPage`（AuroraText 标题 + BlurFade 阶梯入场 + BorderBeam 建议卡 + ShimmerButton CTA）、`ManifestoPage`（AuroraText + TypingText + BorderBeam）。
+  2. **补平台脚手架**：`flutter create --platforms=macos` 补齐缺失的 macOS/`.gitignore`/`.metadata`/`analysis_options.yaml`，并为 macOS 加 `network.client` entitlement（修顾问页连不上后端）。
+  3. **Web 端**：新建 `apps/web`（Next.js 16 + React 19 + Tailwind v4 + shadcn 配置 + motion），原生装入 7 个对应 Magic UI 组件，做出落地页（Hero/Marquee/Features/Stats NumberTicker/CTA）与 `/admin` 占位页。
+  4. **API 编译修复**：补 `AdvisorService.getTaskStatus` 桩 + `runExecutor` 的 checkpoint 输出（修复进入会话时已存在的 3 个 TS 编译错误，使 `services/api` 可启动）。
+- 文件: `apps/mobile/lib/core/widgets/magic/**`, `apps/mobile/lib/features/magic_showcase/**`, `apps/mobile/lib/features/today/today_page.dart`, `apps/mobile/lib/features/manifesto/manifesto_page.dart`, `apps/mobile/lib/features/settings/settings_page.dart`, `apps/mobile/macos/**`, `apps/mobile/pubspec.yaml`, `apps/web/**`, `services/api/src/modules/advisor/advisor.service.ts`, `services/api/src/modules/advisor/agent_loop/executor.agent.ts`
+- 验证:
+  - 移动端：`flutter analyze` 我的新增/改动文件零问题；`flutter test` 全量 **48/48 PASS**（修复了 BlurFade 因 `flutter_animate` 的 `delay` 用 Timer 导致的「Timer 仍 pending」失败 → 改纯 AnimationController；并精简 Today 标题高度避免 800×600 视口下 CTA 越界）。
+  - Web：`pnpm run build` **成功**（`/` 与 `/admin` 静态预渲染、TS 零错误）；dev server 启动返回 200。
+- 决策:
+  1. Magic UI 是 React/Tailwind/motion 的 Web 库，**无法装进 Flutter**；移动端采用「等价复刻」策略，组件名/参数与 Web 端 1:1 对齐方便双端视觉一致。
+  2. 不用 `animated_text_kit`（SDK 上限 `<3.0.0` 与 Dart 3.8 不兼容），打字效果自实现。
+  3. **顾问页不动**：其已有复杂流式打字逻辑且被大量测试依赖，避免回归风险。
+- 下一步: 可选——Web 后台 `/admin` 真正接入 `services/api`；或给 Flutter 历史/引导页继续接入动效。
 
 ### [2026-05-09 06:46] [窗口: 当前会话] [任务: 规划收尾]
 - 操作: 完成产品规格与一期实施计划文档；建立统一进展日志机制。

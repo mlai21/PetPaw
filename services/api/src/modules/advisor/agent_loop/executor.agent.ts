@@ -1,5 +1,5 @@
 import { runBailianSearch } from './bailian.tool';
-import { ExecutorOutput, PlanTask } from './types';
+import { AdvisorCheckpoint, ExecutorOutput, PlanTask } from './types';
 import { runTavilySearch } from './tavily.tool';
 import { runXSearch } from './x.tool';
 
@@ -148,12 +148,28 @@ export async function runExecutor(params: {
   tavilyApiKey?: string;
   originalMessage: string;
   searchToolTimeoutMs?: number;
+  checkpoint?: AdvisorCheckpoint;
 }): Promise<ExecutorOutput> {
   const steps: ExecutorOutput['steps'] = [];
   const notes: string[] = [];
   const searchToolTimeoutMs = Math.max(params.searchToolTimeoutMs ?? 12000, 1000);
+  const completedFromCheckpoint = new Set(
+    params.checkpoint?.completedTaskIds ?? [],
+  );
 
   for (const task of params.tasks) {
+    if (completedFromCheckpoint.has(task.id)) {
+      steps.push({
+        taskId: task.id,
+        title: task.title,
+        status: 'skipped',
+        tool: 'none',
+        inputSummary: 'checkpoint-skip',
+        outputSummary: '已从 checkpoint 跳过',
+      });
+      continue;
+    }
+
     if (!task.needSearch || !params.allowSearch) {
       steps.push({
         taskId: task.id,
@@ -168,7 +184,7 @@ export async function runExecutor(params: {
 
     let outputSummary = '';
     let selectedTool: ExecutorOutput['steps'][number]['tool'] = 'none';
-    let status: ExecutorOutput['steps'][number]['status'] = 'failed';
+    let searchDone = false;
     let reasonSummary = 'unknown-search-failure';
 
     const primaryCandidates: Array<Promise<SearchCandidateResult>> = [];
@@ -196,7 +212,7 @@ export async function runExecutor(params: {
     }
 
     const pendingPrimary = [...primaryCandidates];
-    while (status !== 'done' && pendingPrimary.length > 0) {
+    while (!searchDone && pendingPrimary.length > 0) {
       const raced = await Promise.race(
         pendingPrimary.map((candidate, index) =>
           candidate.then((result) => ({ index, result })),
@@ -206,14 +222,14 @@ export async function runExecutor(params: {
       selectedTool = raced.result.tool;
       notes.push(raced.result.note);
       if (raced.result.status === 'ok') {
-        status = 'done';
+        searchDone = true;
         outputSummary = raced.result.outputSummary ?? '';
         break;
       }
       reasonSummary = raced.result.reasonSummary ?? 'search_candidate_not_usable';
     }
 
-    if (status !== 'done' && params.xBearerToken) {
+    if (!searchDone && params.xBearerToken) {
       try {
         const snippet = await withTimeout(
           runXSearch({
@@ -226,7 +242,7 @@ export async function runExecutor(params: {
         );
         if (hasUsableSearchContent(snippet)) {
           selectedTool = 'x-search';
-          status = 'done';
+          searchDone = true;
           outputSummary = snippet;
           notes.push(`x_ok:${task.id}`);
         } else {
@@ -242,11 +258,11 @@ export async function runExecutor(params: {
       }
     }
 
-    if (status === 'done') {
+    if (searchDone) {
       steps.push({
         taskId: task.id,
         title: task.title,
-        status,
+        status: 'done',
         tool: selectedTool,
         inputSummary: params.originalMessage,
         outputSummary,
@@ -277,5 +293,24 @@ export async function runExecutor(params: {
     });
   }
 
-  return { steps, notes };
+  const completedTaskIds = [
+    ...new Set([
+      ...(params.checkpoint?.completedTaskIds ?? []),
+      ...steps
+          .filter((step) => step.status === 'done' || step.status === 'skipped')
+          .map((step) => step.taskId),
+    ]),
+  ];
+  const lastFailedStep = [...steps].reverse().find((step) => step.status === 'failed');
+
+  return {
+    steps,
+    notes,
+    checkpoint: {
+      version: 1,
+      completedTaskIds,
+      lastFailedTaskId: lastFailedStep?.taskId,
+      updatedAt: new Date().toISOString(),
+    },
+  };
 }

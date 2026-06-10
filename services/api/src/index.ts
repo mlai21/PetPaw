@@ -7,6 +7,7 @@ if (process.env.NODE_ENV !== 'test') {
 import { advisorRouter } from './modules/advisor/advisor.controller';
 import { authRouter } from './modules/auth/auth.controller';
 import { avatarOnboardingRouter } from './modules/avatar/avatar_onboarding.controller';
+import { exportRouter } from './modules/export/export.controller';
 import { reviewRouter } from './modules/review/monthly_review.controller';
 import { createSessionStoreFromEnv } from './modules/advisor/persistence/session_store.factory';
 import type { SessionStore } from './modules/advisor/persistence/session_store.types';
@@ -65,3 +66,4 @@ app.use('/auth', authRouter);
 app.use('/avatar', avatarOnboardingRouter);
 app.use('/advisor', advisorRouter);
 app.use('/review', reviewRouter);
+app.use('/export', exportRouter);

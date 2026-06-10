@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pet_paw_app/core/widgets/magic/magic.dart';
 
 class TodayPage extends StatefulWidget {
   const TodayPage({super.key, this.onAskAdvisor});
@@ -27,31 +28,42 @@ class _TodayPageState extends State<TodayPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _SectionCard(
-          title: '肯定昨天的自己',
-          subtitle: '一句话写下：做得好的事 + 要感谢的人',
-          child: TextField(
-            key: const Key('today_affirm_input'),
-            controller: _affirmController,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              hintText: '例如：谢谢昨天坚持晨跑的自己',
+        MagicBlurFade(
+          child: _TodayHeader(),
+        ),
+        const SizedBox(height: 12),
+        MagicBlurFade(
+          delay: const Duration(milliseconds: 120),
+          child: _SectionCard(
+            title: '肯定昨天的自己',
+            subtitle: '一句话写下：做得好的事 + 要感谢的人',
+            child: TextField(
+              key: const Key('today_affirm_input'),
+              controller: _affirmController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: '例如：谢谢昨天坚持晨跑的自己',
+              ),
             ),
           ),
         ),
         const SizedBox(height: 12),
-        _SectionCard(
-          title: '今天要挑战的事',
-          subtitle: '一句话写下今天最想完成的挑战',
-          child: TextField(
-            key: const Key('today_challenge_input'),
-            controller: _challengeController,
-            onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              hintText: '例如：今晚完成30分钟深度工作',
+        MagicBlurFade(
+          delay: const Duration(milliseconds: 220),
+          child: _SectionCard(
+            title: '今天要挑战的事',
+            subtitle: '一句话写下今天最想完成的挑战',
+            child: TextField(
+              key: const Key('today_challenge_input'),
+              controller: _challengeController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: '例如：今晚完成30分钟深度工作',
+              ),
             ),
           ),
         ),
@@ -60,37 +72,64 @@ class _TodayPageState extends State<TodayPage> {
           onPressed: () => setState(() => _showChallengeSuggestions = true),
           child: const Text('获取建议'),
         ),
-        if (_showChallengeSuggestions) ...const [
-          SizedBox(height: 12),
-          Card(
-            elevation: 1,
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('来自宣言书的建议项'),
-                  SizedBox(height: 8),
-                  Text('Run 3km'),
-                  Text('晚间复盘 10 分钟'),
-                ],
+        if (_showChallengeSuggestions) ...[
+          const SizedBox(height: 12),
+          MagicBlurFade(
+            child: MagicBorderBeam(
+              borderRadius: 12,
+              baseBorderColor: theme.colorScheme.outlineVariant,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('来自宣言书的建议项'),
+                    SizedBox(height: 8),
+                    Text('Run 3km'),
+                    Text('晚间复盘 10 分钟'),
+                  ],
+                ),
               ),
             ),
           ),
         ],
         if (_isComplete) ...[
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: () {
-              widget.onAskAdvisor?.call({
-                'affirmation': _affirmController.text.trim(),
-                'challenge': _challengeController.text.trim(),
-              });
-            },
-            child: const Text('带着今天的状态问顾问'),
+          const SizedBox(height: 16),
+          Center(
+            child: MagicShimmerButton(
+              label: '带着今天的状态问顾问',
+              icon: Icons.auto_awesome,
+              onPressed: () {
+                widget.onAskAdvisor?.call({
+                  'affirmation': _affirmController.text.trim(),
+                  'challenge': _challengeController.text.trim(),
+                });
+              },
+            ),
           ),
         ],
       ],
+    );
+  }
+}
+
+class _TodayHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: MagicAuroraText(
+        '今天，遇见更好的自己',
+        style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
 }

@@ -392,11 +392,106 @@ function logSearchQualityFallbackIfNeeded(params: {
   );
 }
 
+type TaskStatusOutput = {
+  queueId: string;
+  status: 'queued' | 'running' | 'completed';
+  progress: number;
+  resultPreview: string;
+  result: ChatOutput | null;
+};
+
 export class AdvisorService {
+  private static readonly taskStatusPolls = new Map<string, number>();
+
   constructor(
     private readonly memoryRepository = new MemoryRepository(),
     private readonly searchProvider = new SearchProvider(),
   ) {}
+
+  getTaskStatus(queueId: string): TaskStatusOutput {
+    const poll = (AdvisorService.taskStatusPolls.get(queueId) ?? 0) + 1;
+    AdvisorService.taskStatusPolls.set(queueId, poll);
+
+    if (poll === 1) {
+      return {
+        queueId,
+        status: 'queued',
+        progress: 0,
+        resultPreview: '',
+        result: null,
+      };
+    }
+
+    if (poll === 2) {
+      return {
+        queueId,
+        status: 'running',
+        progress: 50,
+        resultPreview: '',
+        result: null,
+      };
+    }
+
+    const result: ChatOutput = {
+      answer: stubAnswer,
+      citations: ['memory:async-stub', 'search:async-stub'],
+      meta: {
+        model: 'n/a',
+        route: 'none',
+        llmOk: false,
+      },
+      trace: {
+        intentPromptFile,
+        intent: { needPlan: false, reason: 'async-stub' },
+        plannerPromptFile,
+        toolRegistryFile,
+        tasks: [],
+        executorSteps: [],
+        webLinks: [],
+        timings: {
+          totalMs: 0,
+          intent: buildStageTiming({
+            durationMs: 0,
+            model: 'n/a',
+            skipped: true,
+            reason: 'async-stub',
+          }),
+          planner: buildStageTiming({
+            durationMs: 0,
+            model: 'n/a',
+            skipped: true,
+            reason: 'async-stub',
+          }),
+          executor: buildStageTiming({
+            durationMs: 0,
+            model: 'n/a',
+            skipped: true,
+            reason: 'async-stub',
+          }),
+          responder: buildStageTiming({
+            durationMs: 0,
+            model: 'n/a',
+            skipped: true,
+            reason: 'async-stub',
+          }),
+          verify: buildStageTiming({
+            durationMs: 0,
+            model: 'n/a',
+            skipped: true,
+            reason: 'async-stub',
+          }),
+        },
+      },
+    };
+
+    return {
+      queueId,
+      status: 'completed',
+      progress: 100,
+      resultPreview: result.answer,
+      result,
+    };
+  }
 
   async chat(input: ChatInput): Promise<ChatOutput> {
     const trend = this.memoryRepository.getWeeklyTrend(input.userId);
