@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.js",
     "dev": "pnpm run build && concurrently -k -n tsc,api \"tsc -p tsconfig.build.json -w --preserveWatchOutput\" \"node --watch dist/server.js\"",
     "serve": "pnpm run build && node dist/server.js",
     "smoke:advisor": "curl -sS -X POST \"http://127.0.0.1:${PORT:-3000}/advisor/chat\" -H 'Content-Type: application/json' -d '{\"userId\":\"smoke\",\"message\":\"用一句话打个招呼\",\"allowSearch\":false}' | node -e \"const d=require('fs').readFileSync(0,'utf8'); try { const j=JSON.parse(d); console.log(j.answer||j); } catch(e){ console.log(d); process.exit(1);}\"",
