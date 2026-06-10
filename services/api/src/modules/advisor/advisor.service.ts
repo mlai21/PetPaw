@@ -508,6 +508,93 @@ export class AdvisorService {
       };
     }
 
+    // E.1 分流：RUNTIME 启用且有 dashKey 时走新 runtime（失败时降级回原 pipeline）
+    const runtimeEnabledFlag =
+      process.env.ADVISOR_RUNTIME_ENABLED?.trim().toLowerCase() === 'true';
+    const dashKeyForRuntime = process.env.DASHSCOPE_API_KEY?.trim();
+    if (runtimeEnabledFlag && dashKeyForRuntime) {
+      const { runAdvisorRuntime } = await import('./runtime/runtime.entry');
+      const baseUrl =
+        process.env.DASHSCOPE_COMPAT_BASE_URL?.trim() || defaultDashscopeBaseUrl;
+      const model = process.env.DASHSCOPE_MODEL?.trim() || 'qwen3.5-flash';
+      const intentModel = process.env.ADVISOR_INTENT_MODEL?.trim() || model;
+      const plannerModel = process.env.ADVISOR_PLANNER_MODEL?.trim() || model;
+      const responderModel = process.env.ADVISOR_RESPONDER_MODEL?.trim() || model;
+      const verifyModel = process.env.ADVISOR_VERIFY_MODEL?.trim() || model;
+      const enableThinking = parseEnableThinking(process.env.ADVISOR_ENABLE_THINKING);
+      const searchToolTimeoutMs = parseSearchToolTimeoutMs(
+        process.env.ADVISOR_SEARCH_TOOL_TIMEOUT_MS,
+      );
+      try {
+        const runtimeOutput = await runAdvisorRuntime({
+          baseUrl,
+          apiKey: dashKeyForRuntime,
+          model,
+          intentModel,
+          plannerModel,
+          responderModel,
+          verifyModel,
+          userMessage: input.message,
+          weeklyTrend: trend,
+          effectiveAllowSearch,
+          enableThinking,
+          searchToolTimeoutMs,
+        });
+        const totalMs =
+          (runtimeOutput.runtime.endedAtMs ?? Date.now()) -
+          (runtimeOutput.runtime.startedAtMs ?? Date.now());
+        return {
+          answer: runtimeOutput.finalAnswer,
+          citations: [...citations, 'provider:bailian-qwen-compatible', 'runtime:e1'],
+          meta: {
+            model,
+            route: 'dashscope',
+            llmOk: runtimeOutput.terminalState === 'R_COMPLETED',
+          },
+          trace: {
+            intentPromptFile,
+            intent: { needPlan: runtimeOutput.totalTurns > 0, reason: 'runtime-e1' },
+            plannerPromptFile,
+            toolRegistryFile,
+            tasks: [],
+            executorSteps: [],
+            webLinks: [],
+            timings: {
+              totalMs,
+              intent: buildStageTiming({
+                durationMs: runtimeOutput.intentDurationMs,
+                model: intentModel,
+              }),
+              planner: buildStageTiming({
+                durationMs: runtimeOutput.plannerDurationMs,
+                model: plannerModel,
+              }),
+              executor: buildStageTiming({
+                durationMs: runtimeOutput.executorDurationMs,
+                model: 'n/a',
+              }),
+              responder: buildStageTiming({
+                durationMs: runtimeOutput.responderDurationMs,
+                model: responderModel,
+              }),
+              verify: buildStageTiming({
+                durationMs: runtimeOutput.verifyDurationMs,
+                model: verifyModel,
+                skipped: !runtimeOutput.verifyEnabled,
+                reason: !runtimeOutput.verifyEnabled ? 'verify-disabled-by-env' : undefined,
+              }),
+            },
+          },
+        };
+      } catch (err) {
+        console.warn(
+          '[advisor][runtime_e1_fallback]',
+          err instanceof Error ? err.message : String(err),
+        );
+        // 失败时降级到原 pipeline，继续走 dashKey 路径
+      }
+    }
+
     const dashKey = process.env.DASHSCOPE_API_KEY?.trim();
     if (dashKey) {
       const baseUrl =
