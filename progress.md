@@ -36,7 +36,7 @@
 | Task 14 | LLM API（百炼 OpenAI 兼容 + 可选 OpenAI） | DONE | 当前会话 | 2026-05-12 | 规范见 `docs/integrations/alibaba-bailian-openai-compatible.md` |
 | Task 15 | 注册 / 登录页 + 设置入口导航 | TODO | — | — | 鉴权与 API 后续迭代 |
 | Task 16 | 注册后分身创建向导（手机号后置 + 2 步创建） | DONE | 当前会话 | 2026-05-13 00:58 | 移动端与 API 占位契约已落地并通过回归 |
-| Task 17 | Self-evolving advisor agent 架构（L1+L2+L3 + D 自适应路由） | IN_PROGRESS | 当前会话 | 2026-05-23 09:10 | Spec + E.1/E.2/E.3 三个 plan 全部落地（共 44 个 TDD task），待启动实现 |
+| Task 17 | Self-evolving advisor agent 架构（L1+L2+L3 + D 自适应路由） | DONE-E1 / IN_PROGRESS-E2 | 当前会话 | 2026-06-11 01:10 | Phase E.1 已落地并通过闸门（13/13 task），下一步进 E.2 |
 
 状态值约定：`TODO` / `IN_PROGRESS` / `BLOCKED` / `DONE`  
 领取任务时先把对应行改为 `IN_PROGRESS` 并填写“负责人窗口”，完成后改为 `DONE`。
@@ -340,6 +340,16 @@
 - 验证: 基于现有代码与日志点位定义进行文档一致性检查（stage_timing/final_summary_input/verify_output/search_quality_fallback）；本次仅文档改动，无需执行测试命令。
 - 决策: 后续定位问题优先按“日志定位 -> 环境开关验证 -> 最小代码改动”三步执行，避免直接大改引入新变量。
 - 下一步: 你确认后，我可以直接按手册第 1 条开始做“最小实验”（先关 verify + 缩短搜索超时）帮你把当前卡点快速压缩出来。
+
+### [2026-06-11 01:10] [窗口: 当前会话] [任务: Task 17 - Phase E.1 落地]
+- 操作: 完成 self-evolving advisor Phase E.1 全部 13 个子任务（Runtime/Task 状态机 + reducer、AgentResult 统一协议、5 个 agent wrapper、ADVISOR_RUNTIME_* env 集中读取、关键词分类、RouterPolicy 内存版三级降级链、Scheduler turn 循环、runtime 入口与 AdvisorService feature-flag 分流、.env.example、性能基线脚本），每个任务独立 TDD commit。
+- 文件: `services/api/src/modules/advisor/runtime/**`, `services/api/test/advisor/runtime/**`, `services/api/src/modules/advisor/advisor.service.ts`, `services/api/src/modules/advisor/agent_loop/types.ts`, `services/api/.env.example`, `services/api/scripts/perf_baseline_e1.ts`, `progress.md`
+- 验证: 新增 9 个 runtime suites 共 43 用例全 PASS；降级演练三种组合（runtime off / on+D-off / on+D-on）均为 6 failed 72 passed（与基线完全一致，零新增失败；既有 6 个失败属另一窗口进行中的异步队列功能）；perf 闸门 PASS（baseline p50=9398ms p95=24210ms，e1 p50=922ms p95=28352ms，p50 比值 0.10≤1.10，p95 比值 1.17≤1.20）。
+- 决策:
+  1. D 默认保持关闭（ADVISOR_ROUTER_D_ENABLED=false），先在内网环境验证一段时间再考虑灰度开启。
+  2. Scheduler 的 retry_task 语义修正：重试额度耗尽时标记 T_SKIPPED 并进入下一 turn（plan 参考代码会误落入 responder，与 plan 自带测试矛盾，已按测试语义实现）。
+  3. advisor.service.ts 的提交只包含 E.1 分流改动；另一窗口未提交的 getTaskStatus 桩保持为工作区改动未动。
+- 下一步: 进入 Phase E.2（L2 SessionStore + D-Learner 离线版 + mobile explicit 信号 UI 通道），按 `docs/superpowers/plans/2026-05-23-self-evolving-advisor-e2-plan.md` 执行。
 
 ### [2026-05-23 09:10] [窗口: 当前会话] [任务: Task 17 - Self-evolving Agent 三个 Phase plan 全部落地]
 - 操作: 按 writing-plans skill 流程串行产出 Phase E.1 / E.2 / E.3 三个 implementation plan，覆盖 spec §4-§11 全部章节；每个 plan 含完整 TDD 任务（编号 + 文件路径 + 失败测试 + 实现代码 + 验证命令 + commit message + 自检），E.1 13 任务 / E.2 17 任务 / E.3 14 任务，合计 44 个可执行 task。
